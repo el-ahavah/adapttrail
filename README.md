@@ -6,7 +6,7 @@
 
 ## Project status
 
-The first Flask prototype is implemented: Home, Discover, action filtering, and fictional project detail pages. It runs locally and has not been deployed. Accounts, persistent storage, assessments, journals, and publication are planned. No partnerships, UN affiliation, verified impact, or worldwide originality are claimed.
+The first Flask prototype is implemented: Home, Discover, action filtering, fictional project detail pages, and local project drafts saved in SQLite. It runs locally and has not been deployed. Accounts, hosted storage, assessments, progress observations, and publication are planned. No partnerships, UN affiliation, verified impact, or worldwide originality are claimed.
 
 ## The idea
 
@@ -216,7 +216,17 @@ Open http://127.0.0.1:5000 in your browser. The development server is for local 
 - `static/style.css`: responsive styling.
 - `requirements.txt`: pinned direct application dependency.
 
-This release uses in-memory demonstration data, with no database, accounts, weather API, or paid services. No user submissions are collected. Restarting does not lose user data because no user data can be entered yet.
+The demonstration collection remains separate from user drafts. Create a draft through **My drafts → Create a draft**. Drafts are stored in `instance/drafts.sqlite3` and persist after restarting. They can optionally reference a fictional demo as inspiration. Editing, deletion, progress observations, and public publication are not implemented yet.
+
+This is a local, single-user prototype with no accounts. Anyone who can access the running app can read the drafts. Run on the default loopback address only; do not expose it publicly. Shared deployment requires authentication and per-user ownership checks. SQLite here is a learning step, not the selected hosted database. No weather API or paid services are required.
+
+The `instance/` directory and its session key are excluded from Git. To back up local drafts, stop the app and copy `instance/drafts.sqlite3` to a safe private location.
+
+Run the persistence and form checks:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## Licence
 
