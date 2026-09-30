@@ -6,7 +6,7 @@
 
 ## Project status
 
-The first Flask prototype is implemented: Home, Discover, action filtering, fictional project detail pages, and local project drafts saved in SQLite. It runs locally and has not been deployed. Accounts, hosted storage, assessments, progress observations, and publication are planned. No partnerships, UN affiliation, verified impact, or worldwide originality are claimed.
+The first Flask prototype is implemented: Home, Discover, action filtering, fictional project detail pages, and local project drafts saved in SQLite. It runs locally and has not been deployed. Registration, sign-in, sign-out, and draft ownership are implemented locally. Hosted storage, assessments, progress observations, and publication are planned. No partnerships, UN affiliation, verified impact, or worldwide originality are claimed.
 
 ## The idea
 
@@ -218,7 +218,7 @@ Open http://127.0.0.1:5000 in your browser. The development server is for local 
 
 The demonstration collection remains separate from user drafts. Create a draft through **My drafts → Create a draft**. Drafts are stored in `instance/drafts.sqlite3` and persist after restarting. They can optionally reference a fictional demo as inspiration. Open a saved draft and choose **Edit draft** to update it, or **Delete draft** to review a confirmation page. Deletion requires an explicit confirmation and cannot be undone. Progress observations and public publication are not implemented yet.
 
-This is a local, single-user prototype with no accounts. Anyone who can access the running app can read the drafts. Run on the default loopback address only; do not expose it publicly. Shared deployment requires authentication and per-user ownership checks. SQLite here is a learning step, not the selected hosted database. No weather API or paid services are required.
+This remains a local prototype. Create an account with a username and a password of 12–128 characters, then sign in. Each account can access only its own drafts. Passwords are hashed, and state-changing forms require CSRF tokens. Run on the default loopback address. Before public deployment, add login rate limiting, HTTPS with secure cookies, production secret configuration, and a hosted database. Password recovery is not implemented yet. SQLite here is a learning step, not the selected hosted database. No weather API or paid services are required.
 
 The `instance/` directory and its session key are excluded from Git. To back up local drafts, stop the app and copy `instance/drafts.sqlite3` to a safe private location.
 
@@ -231,3 +231,14 @@ python -m unittest discover -s tests -v
 ## Licence
 
 A code licence has not yet been selected. Contributor consent and reuse terms for community submissions must be addressed separately from the software licence.
+
+
+## Existing drafts from before accounts
+
+The database migration preserves older drafts with no owner. They are hidden from every account and are never automatically assigned to the first person who registers. After creating your account, the owner of the local installation can stop the server and explicitly assign all unowned drafts:
+
+```bash
+flask --app app assign-legacy-drafts YOUR_USERNAME
+```
+
+Use this only for drafts you own. It leaves already assigned drafts unchanged. Back up the SQLite file before migration or reassignment.

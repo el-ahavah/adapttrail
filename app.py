@@ -1,9 +1,12 @@
 """AdaptTrail's first pages. All examples are fictional demonstration data."""
-from flask import Flask, abort, render_template, request, redirect, url_for, session
+from flask import Flask, abort, render_template, request, redirect, url_for, session, g
 from pathlib import Path
 import secrets
 import sqlite3
 import hmac
+import re
+import click
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 Path(app.instance_path).mkdir(parents=True, exist_ok=True)
@@ -25,6 +28,13 @@ def database():
         problem TEXT NOT NULL, approach TEXT NOT NULL, conditions TEXT NOT NULL,
         source_id TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )""")
+    connection.execute("""CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL
+    )""")
+    if 'user_id' not in {row['name'] for row in connection.execute('PRAGMA table_info(drafts)')}:
+        connection.execute('ALTER TABLE drafts ADD COLUMN user_id INTEGER REFERENCES users(id)')
+    connection.commit()
     return connection
 
 
@@ -32,7 +42,7 @@ def database():
 def form_token():
     if 'csrf_token' not in session:
         session['csrf_token'] = secrets.token_hex(32)
-    return dict(csrf_token=session['csrf_token'])
+    return dict(csrf_token=session['csrf_token'], current_user=g.user)
 
 PROJECTS = [
     dict(id='garden-mulch', title='Keeping moisture in a school garden', action='Soil cover', setting='School garden', problem='A school wants to reduce frequent watering during dry periods.', approach='Explore covering exposed soil with suitable mulch and observing moisture before watering.', conditions='Plant type, soil drainage, available mulch, and maintenance capacity need assessment.', lessons='Record watering volumes and weather over the same measurement period. No measured results are available.', icon='01'),
@@ -67,7 +77,7 @@ def not_found(error):
 def drafts():
     connection = database()
     try:
-        records = connection.execute('SELECT * FROM drafts ORDER BY id DESC').fetchall()
+        records = connection.execute('SELECT * FROM drafts WHERE user_id = ? ORDER BY id DESC', (g.user['id'],)).fetchall()
     finally:
         connection.close()
     return render_template('drafts.html', drafts=records)
@@ -85,8 +95,8 @@ def new_draft():
             try:
                 with connection:
                     cursor = connection.execute(
-                        'INSERT INTO drafts (title,country,problem,approach,conditions,source_id) VALUES (?,?,?,?,?,?)',
-                        tuple(values[key] for key in ['title', 'country', 'problem', 'approach', 'conditions', 'source_id']))
+                        'INSERT INTO drafts (title,country,problem,approach,conditions,source_id,user_id) VALUES (?,?,?,?,?,?,?)',
+                        tuple(values[key] for key in ['title', 'country', 'problem', 'approach', 'conditions', 'source_id']) + (g.user['id'],))
                     draft_id = cursor.lastrowid
             finally:
                 connection.close()
@@ -128,7 +138,7 @@ def validate_draft(form):
 def get_draft(draft_id):
     connection = database()
     try:
-        draft = connection.execute('SELECT * FROM drafts WHERE id = ?', (draft_id,)).fetchone()
+        draft = connection.execute('SELECT * FROM drafts WHERE id = ? AND user_id = ?', (draft_id, g.user['id'])).fetchone()
     finally:
         connection.close()
     if draft is None:
@@ -148,8 +158,8 @@ def edit_draft(draft_id):
             try:
                 with connection:
                     connection.execute(
-                        'UPDATE drafts SET title=?,country=?,problem=?,approach=?,conditions=?,source_id=? WHERE id=?',
-                        tuple(values[key] for key in DRAFT_FIELDS) + (draft_id,))
+                        'UPDATE drafts SET title=?,country=?,problem=?,approach=?,conditions=?,source_id=? WHERE id=? AND user_id=?',
+                        tuple(values[key] for key in DRAFT_FIELDS) + (draft_id, g.user['id']))
             finally:
                 connection.close()
             return redirect(url_for('draft_detail', draft_id=draft_id))
@@ -167,8 +177,95 @@ def delete_draft(draft_id):
         connection = database()
         try:
             with connection:
-                connection.execute('DELETE FROM drafts WHERE id = ?', (draft_id,))
+                connection.execute('DELETE FROM drafts WHERE id = ? AND user_id = ?', (draft_id, g.user['id']))
         finally:
             connection.close()
         return redirect(url_for('drafts'))
     return render_template('draft_delete.html', draft=draft)
+
+
+@app.before_request
+def load_user():
+    g.user = None
+    if session.get('user_id'):
+        connection = database()
+        try:
+            g.user = connection.execute('SELECT id,username FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        finally:
+            connection.close()
+        if g.user is None:
+            session.clear()
+    if request.path.startswith('/drafts') and g.user is None:
+        return redirect(url_for('login'))
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    error, username = None, ''
+    if request.method == 'POST':
+        check_csrf()
+        username = request.form.get('username', '').strip().lower()
+        password = request.form.get('password', '')
+        if not re.fullmatch(r'[a-z0-9_]{3,30}', username):
+            error = 'Use 3–30 letters, numbers, or underscores for your username.'
+        elif not 12 <= len(password) <= 128:
+            error = 'Use a password between 12 and 128 characters.'
+        elif password != request.form.get('confirmation', ''):
+            error = 'The passwords do not match.'
+        else:
+            password_hash = generate_password_hash(password)
+            connection = database()
+            try:
+                with connection:
+                    connection.execute('INSERT INTO users (username,password_hash) VALUES (?,?)', (username, password_hash))
+            except sqlite3.IntegrityError:
+                error = 'That username is unavailable.'
+            finally:
+                connection.close()
+            if error is None:
+                return redirect(url_for('login'))
+    return render_template('auth.html', registering=True, error=error, username=username), (400 if error else 200)
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error, username = None, ''
+    if request.method == 'POST':
+        check_csrf()
+        username = request.form.get('username', '').strip().lower()
+        password = request.form.get('password', '')
+        connection = database()
+        try:
+            user = connection.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        finally:
+            connection.close()
+        if len(password) > 128 or user is None or not check_password_hash(user['password_hash'], password):
+            error = 'Incorrect username or password.'
+        else:
+            session.clear()
+            session['user_id'] = user['id']
+            return redirect(url_for('drafts'))
+    return render_template('auth.html', registering=False, error=error, username=username), (400 if error else 200)
+
+
+@app.post('/logout')
+def logout():
+    check_csrf()
+    session.clear()
+    return redirect(url_for('home'))
+
+
+@app.cli.command('assign-legacy-drafts')
+@click.argument('username')
+def assign_legacy_drafts(username):
+    """Local owner operation: explicitly assign all unowned pre-account drafts."""
+    connection = database()
+    try:
+        user = connection.execute('SELECT id FROM users WHERE username = ?', (username.lower(),)).fetchone()
+        if user is None:
+            raise click.ClickException('Create this account first.')
+        with connection:
+            count = connection.execute('UPDATE drafts SET user_id = ? WHERE user_id IS NULL', (user['id'],)).rowcount
+    finally:
+        connection.close()
+    click.echo(f'Assigned {count} legacy drafts to {username}.')

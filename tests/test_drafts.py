@@ -10,6 +10,11 @@ class DraftTests(unittest.TestCase):
         self.previous = app.config['DATABASE']
         app.config.update(TESTING=True, DATABASE=str(Path(self.directory.name) / 'test.sqlite3'))
         self.client = app.test_client()
+        self.client.get('/register')
+        with self.client.session_transaction() as session:
+            token = session['csrf_token']
+        self.client.post('/register', data=dict(csrf_token=token, username='alice', password='long-password-123', confirmation='long-password-123'))
+        self.client.post('/login', data=dict(csrf_token=token, username='alice', password='long-password-123'))
         self.client.get('/drafts/new')
         with self.client.session_transaction() as session:
             self.token = session['csrf_token']
@@ -29,7 +34,7 @@ class DraftTests(unittest.TestCase):
             self.assertEqual(connection.execute('SELECT COUNT(*) FROM drafts').fetchone()[0], 1)
         finally:
             connection.close()
-        page = app.test_client().get(response.location).get_data(as_text=True)
+        page = self.client.get(response.location).get_data(as_text=True)
         self.assertIn('&lt;script&gt;', page)
         self.assertNotIn('<script>alert', page)
         self.assertIn('Fictional demo source', page)
@@ -73,6 +78,54 @@ class DraftTests(unittest.TestCase):
         self.assertEqual(self.client.get('/drafts/1/edit').status_code, 404)
         self.assertEqual(self.client.get('/drafts/1/delete').status_code, 404)
         self.assertEqual(self.client.get('/projects/garden-mulch').status_code, 200)
+
+    def test_accounts_isolate_all_draft_operations(self):
+        self.client.post('/drafts/new', data=self.data)
+        bob = app.test_client()
+        bob.get('/register')
+        with bob.session_transaction() as session:
+            token = session['csrf_token']
+        bob.post('/register', data=dict(csrf_token=token, username='bob', password='another-password-123', confirmation='another-password-123'))
+        bob.post('/login', data=dict(csrf_token=token, username='bob', password='another-password-123'))
+        bob.get('/drafts')
+        with bob.session_transaction() as session:
+            token = session['csrf_token']
+        self.assertNotIn('&lt;script&gt;', bob.get('/drafts').get_data(as_text=True))
+        for path in ['/drafts/1', '/drafts/1/edit', '/drafts/1/delete']:
+            self.assertEqual(bob.get(path).status_code, 404)
+        for suffix in ['edit', 'delete']:
+            self.assertEqual(bob.post('/drafts/1/' + suffix, data=self.data | dict(csrf_token=token, confirm='delete')).status_code, 404)
+        self.assertEqual(self.client.get('/drafts/1').status_code, 200)
+        anonymous = app.test_client()
+        self.assertEqual(anonymous.get('/drafts').status_code, 302)
+        self.assertEqual(anonymous.post('/drafts/new', data=self.data).status_code, 302)
+
+    def test_auth_validation_and_logout(self):
+        connection = database()
+        try:
+            stored = connection.execute('SELECT password_hash FROM users').fetchone()[0]
+            self.assertNotEqual(stored, 'long-password-123')
+        finally:
+            connection.close()
+        self.assertEqual(self.client.post('/register', data=dict(csrf_token=self.token, username='ALICE', password='long-password-123', confirmation='long-password-123')).status_code, 400)
+        self.assertEqual(self.client.post('/login', data=dict(csrf_token=self.token, username='alice', password='incorrect')).status_code, 400)
+        self.assertEqual(self.client.get('/logout').status_code, 405)
+        self.assertEqual(self.client.post('/logout', data=dict(csrf_token='bad')).status_code, 400)
+        self.assertEqual(self.client.post('/logout', data=dict(csrf_token=self.token)).status_code, 302)
+        self.assertEqual(self.client.get('/drafts').status_code, 302)
+
+    def test_unowned_drafts_remain_hidden_until_explicit_assignment(self):
+        connection = database()
+        try:
+            with connection:
+                connection.execute("INSERT INTO drafts (title,country,problem,approach,conditions,source_id) VALUES ('Legacy record','Nigeria','Water','Monitor','','')")
+        finally:
+            connection.close()
+        self.assertNotIn('Legacy record', self.client.get('/drafts').get_data(as_text=True))
+        self.assertEqual(self.client.get('/drafts/1').status_code, 404)
+        result = app.test_cli_runner().invoke(args=['assign-legacy-drafts', 'alice'])
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn('Legacy record', self.client.get('/drafts').get_data(as_text=True))
 
     def test_missing_draft(self):
         self.assertEqual(self.client.get('/drafts/999').status_code, 404)
