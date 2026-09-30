@@ -216,7 +216,7 @@ Open http://127.0.0.1:5000 in your browser. The development server is for local 
 - `static/style.css`: responsive styling.
 - `requirements.txt`: pinned direct application dependency.
 
-The demonstration collection remains separate from user drafts. Create a draft through **My drafts → Create a draft**. Drafts are stored in `instance/drafts.sqlite3` and persist after restarting. They can optionally reference a fictional demo as inspiration. Editing, deletion, progress observations, and public publication are not implemented yet.
+The demonstration collection remains separate from user drafts. Create a draft through **My drafts → Create a draft**. Drafts are stored in `instance/drafts.sqlite3` and persist after restarting. They can optionally reference a fictional demo as inspiration. Open a saved draft and choose **Edit draft** to update it, or **Delete draft** to review a confirmation page. Deletion requires an explicit confirmation and cannot be undone. Progress observations and public publication are not implemented yet.
 
 This is a local, single-user prototype with no accounts. Anyone who can access the running app can read the drafts. Run on the default loopback address only; do not expose it publicly. Shared deployment requires authentication and per-user ownership checks. SQLite here is a learning step, not the selected hosted database. No weather API or paid services are required.
 

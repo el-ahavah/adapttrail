@@ -78,19 +78,8 @@ def new_draft():
     values = dict.fromkeys(['title', 'country', 'problem', 'approach', 'conditions', 'source_id'], '')
     errors = []
     if request.method == 'POST':
-        token = request.form.get('csrf_token', '')
-        if not token or not hmac.compare_digest(token, session.get('csrf_token', '')):
-            abort(400)
-        values = {key: request.form.get(key, '').strip() for key in values}
-        for key in ['title', 'country', 'problem', 'approach']:
-            if not values[key]:
-                errors.append(f'{key.capitalize()} is required.')
-        for key, value in values.items():
-            limit = 120 if key in ['title', 'country', 'source_id'] else 3000
-            if len(value) > limit:
-                errors.append(f'{key.capitalize()} must be {limit} characters or fewer.')
-        if values['source_id'] and values['source_id'] not in {p['id'] for p in PROJECTS}:
-            errors.append('Choose an available source project.')
+        check_csrf()
+        values, errors = validate_draft(request.form)
         if not errors:
             connection = database()
             try:
@@ -107,6 +96,36 @@ def new_draft():
 
 @app.get('/drafts/<int:draft_id>')
 def draft_detail(draft_id):
+    draft = get_draft(draft_id)
+    source = next((p for p in PROJECTS if p['id'] == draft['source_id']), None)
+    return render_template('draft_detail.html', draft=draft, source=source)
+
+
+DRAFT_FIELDS = ['title', 'country', 'problem', 'approach', 'conditions', 'source_id']
+
+
+def check_csrf():
+    token = request.form.get('csrf_token', '')
+    if not token or not hmac.compare_digest(token, session.get('csrf_token', '')):
+        abort(400)
+
+
+def validate_draft(form):
+    values = {key: form.get(key, '').strip() for key in DRAFT_FIELDS}
+    errors = []
+    for key in ['title', 'country', 'problem', 'approach']:
+        if not values[key]:
+            errors.append(f'{key.capitalize()} is required.')
+    for key, value in values.items():
+        limit = 120 if key in ['title', 'country', 'source_id'] else 3000
+        if len(value) > limit:
+            errors.append(f'{key.capitalize()} must be {limit} characters or fewer.')
+    if values['source_id'] and values['source_id'] not in {p['id'] for p in PROJECTS}:
+        errors.append('Choose an available source project.')
+    return values, errors
+
+
+def get_draft(draft_id):
     connection = database()
     try:
         draft = connection.execute('SELECT * FROM drafts WHERE id = ?', (draft_id,)).fetchone()
@@ -114,5 +133,42 @@ def draft_detail(draft_id):
         connection.close()
     if draft is None:
         abort(404)
-    source = next((p for p in PROJECTS if p['id'] == draft['source_id']), None)
-    return render_template('draft_detail.html', draft=draft, source=source)
+    return draft
+
+
+@app.route('/drafts/<int:draft_id>/edit', methods=['GET', 'POST'])
+def edit_draft(draft_id):
+    draft = get_draft(draft_id)
+    values, errors = dict(draft), []
+    if request.method == 'POST':
+        check_csrf()
+        values, errors = validate_draft(request.form)
+        if not errors:
+            connection = database()
+            try:
+                with connection:
+                    connection.execute(
+                        'UPDATE drafts SET title=?,country=?,problem=?,approach=?,conditions=?,source_id=? WHERE id=?',
+                        tuple(values[key] for key in DRAFT_FIELDS) + (draft_id,))
+            finally:
+                connection.close()
+            return redirect(url_for('draft_detail', draft_id=draft_id))
+    return render_template('draft_form.html', values=values, errors=errors,
+                           projects=PROJECTS, editing=True, draft_id=draft_id), (400 if errors else 200)
+
+
+@app.route('/drafts/<int:draft_id>/delete', methods=['GET', 'POST'])
+def delete_draft(draft_id):
+    draft = get_draft(draft_id)
+    if request.method == 'POST':
+        check_csrf()
+        if request.form.get('confirm') != 'delete':
+            abort(400)
+        connection = database()
+        try:
+            with connection:
+                connection.execute('DELETE FROM drafts WHERE id = ?', (draft_id,))
+        finally:
+            connection.close()
+        return redirect(url_for('drafts'))
+    return render_template('draft_delete.html', draft=draft)

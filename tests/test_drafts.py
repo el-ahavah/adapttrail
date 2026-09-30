@@ -45,6 +45,35 @@ class DraftTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_edit_updates_same_record_and_invalid_edit_preserves_it(self):
+        self.client.post('/drafts/new', data=self.data)
+        self.assertEqual(self.client.get('/drafts/1/edit').status_code, 200)
+        updated = self.data | dict(title='Updated garden', source_id='')
+        self.assertEqual(self.client.post('/drafts/1/edit', data=updated).status_code, 302)
+        self.assertEqual(self.client.post('/drafts/1/edit', data=updated | dict(title='')).status_code, 400)
+        self.assertEqual(self.client.post('/drafts/1/edit', data=updated | dict(csrf_token='wrong')).status_code, 400)
+        connection = database()
+        try:
+            records = connection.execute('SELECT * FROM drafts').fetchall()
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0]['title'], 'Updated garden')
+            self.assertEqual(records[0]['source_id'], '')
+        finally:
+            connection.close()
+
+    def test_delete_requires_confirmation_and_valid_token(self):
+        self.client.post('/drafts/new', data=self.data)
+        self.assertEqual(self.client.get('/drafts/1/delete').status_code, 200)
+        self.assertEqual(self.client.get('/drafts/1').status_code, 200)
+        for data in [dict(csrf_token=self.token), dict(csrf_token='bad', confirm='delete')]:
+            self.assertEqual(self.client.post('/drafts/1/delete', data=data).status_code, 400)
+            self.assertEqual(self.client.get('/drafts/1').status_code, 200)
+        self.assertEqual(self.client.post('/drafts/1/delete', data=dict(csrf_token=self.token, confirm='delete')).status_code, 302)
+        self.assertEqual(self.client.get('/drafts/1').status_code, 404)
+        self.assertEqual(self.client.get('/drafts/1/edit').status_code, 404)
+        self.assertEqual(self.client.get('/drafts/1/delete').status_code, 404)
+        self.assertEqual(self.client.get('/projects/garden-mulch').status_code, 200)
+
     def test_missing_draft(self):
         self.assertEqual(self.client.get('/drafts/999').status_code, 404)
 
