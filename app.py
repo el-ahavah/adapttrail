@@ -210,8 +210,8 @@ def register():
         password = request.form.get('password', '')
         if not re.fullmatch(r'[a-z0-9_]{3,30}', username):
             error = 'Use 3–30 letters, numbers, or underscores for your username.'
-        elif not 12 <= len(password) <= 128:
-            error = 'Use a password between 12 and 128 characters.'
+        elif not 8 <= len(password) <= 128:
+            error = 'Use a password between 8 and 128 characters.'
         elif password != request.form.get('confirmation', ''):
             error = 'The passwords do not match.'
         else:
