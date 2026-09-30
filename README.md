@@ -6,7 +6,7 @@
 
 ## Project status
 
-This is a proposed project and initial product specification. The application has not yet been built or deployed. No partnerships, UN affiliation, verified impact, or worldwide originality are claimed.
+The first Flask prototype is implemented: Home, Discover, action filtering, and fictional project detail pages. It runs locally and has not been deployed. Accounts, persistent storage, assessments, journals, and publication are planned. No partnerships, UN affiliation, verified impact, or worldwide originality are claimed.
 
 ## The idea
 
@@ -195,7 +195,28 @@ This is an independent initiative. Alignment with the Global Goals does not impl
 
 ## Running the project
 
-There is no runnable application yet. Installation and startup instructions will be added when the first implementation is committed.
+Requires Python 3.10 or newer. From the repository directory:
+
+```bash
+python -m venv .venv
+# Linux / macOS
+source .venv/bin/activate
+# Windows PowerShell (use this instead)
+# .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+flask --app app run --debug
+```
+
+Open http://127.0.0.1:5000 in your browser. The development server is for local use only.
+
+### Current files
+
+- `app.py`: Python routes and three fictional demonstration records.
+- `templates/`: HTML pages rendered by Flask.
+- `static/style.css`: responsive styling.
+- `requirements.txt`: pinned direct application dependency.
+
+This release uses in-memory demonstration data, with no database, accounts, weather API, or paid services. No user submissions are collected. Restarting does not lose user data because no user data can be entered yet.
 
 ## Licence
 

@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}AdaptTrail{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
+<body><a class="skip" href="#main">Skip to content</a>
+<header><a class="brand" href="{{ url_for('home') }}">AdaptTrail<span>A Green Code, Green Planet initiative</span></a><nav aria-label="Main navigation"><a href="{{ url_for('home') }}" {% if request.endpoint == 'home' %}aria-current="page"{% endif %}>Home</a><a href="{{ url_for('discover') }}" {% if request.endpoint == 'discover' %}aria-current="page"{% endif %}>Discover</a></nav></header>
+<main id="main">{% block content %}{% endblock %}</main>
+<footer>Local experience. Shared learning. <span>Early prototype · Fictional examples · No measured impact yet</span></footer></body></html>
