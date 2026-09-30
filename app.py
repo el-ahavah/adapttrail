@@ -2,40 +2,41 @@
 from flask import Flask, abort, render_template, request, redirect, url_for, session, g
 from pathlib import Path
 import secrets
-import sqlite3
+import os
+from storage import connect, IntegrityErrors
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import hmac
 import re
 import click
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-Path(app.instance_path).mkdir(parents=True, exist_ok=True)
-secret_path = Path(app.instance_path) / 'session-key'
-if not secret_path.exists():
-    secret_path.write_text(secrets.token_hex(32))
-    secret_path.chmod(0o600)
-app.config.update(SECRET_KEY=secret_path.read_text(),
+production = os.environ.get('APP_ENV') == 'production'
+secret = os.environ.get('SECRET_KEY')
+database_url = os.environ.get('DATABASE_URL')
+if production and (not secret or len(secret) < 32 or not database_url):
+    raise RuntimeError('Production requires SECRET_KEY (32+ characters) and DATABASE_URL.')
+if not secret:
+    Path(app.instance_path).mkdir(parents=True, exist_ok=True)
+    secret_path = Path(app.instance_path) / 'session-key'
+    if not secret_path.exists():
+        secret_path.write_text(secrets.token_hex(32))
+        secret_path.chmod(0o600)
+    secret = secret_path.read_text()
+app.config.update(SECRET_KEY=secret, DATABASE_URL=database_url,
                   DATABASE=str(Path(app.instance_path) / 'drafts.sqlite3'),
                   MAX_CONTENT_LENGTH=64 * 1024,
+                  SESSION_COOKIE_SECURE=production,
                   SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
 
 
+limiter = Limiter(get_remote_address, app=app, storage_uri='memory://',
+                  enabled=production, default_limits=[])
+
+
 def database():
-    connection = sqlite3.connect(app.config['DATABASE'])
-    connection.row_factory = sqlite3.Row
-    connection.execute("""CREATE TABLE IF NOT EXISTS drafts (
-        id INTEGER PRIMARY KEY, title TEXT NOT NULL, country TEXT NOT NULL,
-        problem TEXT NOT NULL, approach TEXT NOT NULL, conditions TEXT NOT NULL,
-        source_id TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )""")
-    connection.execute("""CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE,
-        password_hash TEXT NOT NULL
-    )""")
-    if 'user_id' not in {row['name'] for row in connection.execute('PRAGMA table_info(drafts)')}:
-        connection.execute('ALTER TABLE drafts ADD COLUMN user_id INTEGER REFERENCES users(id)')
-    connection.commit()
-    return connection
+    return connect(app.config)
 
 
 @app.context_processor
@@ -95,9 +96,9 @@ def new_draft():
             try:
                 with connection:
                     cursor = connection.execute(
-                        'INSERT INTO drafts (title,country,problem,approach,conditions,source_id,user_id) VALUES (?,?,?,?,?,?,?)',
+                        'INSERT INTO drafts (title,country,problem,approach,conditions,source_id,user_id) VALUES (?,?,?,?,?,?,?) RETURNING id',
                         tuple(values[key] for key in ['title', 'country', 'problem', 'approach', 'conditions', 'source_id']) + (g.user['id'],))
-                    draft_id = cursor.lastrowid
+                    draft_id = cursor.fetchone()['id']
             finally:
                 connection.close()
             return redirect(url_for('draft_detail', draft_id=draft_id))
@@ -200,6 +201,7 @@ def load_user():
 
 
 @app.route('/register', methods=['GET', 'POST'])
+@limiter.limit('10 per minute')
 def register():
     error, username = None, ''
     if request.method == 'POST':
@@ -218,7 +220,7 @@ def register():
             try:
                 with connection:
                     connection.execute('INSERT INTO users (username,password_hash) VALUES (?,?)', (username, password_hash))
-            except sqlite3.IntegrityError:
+            except IntegrityErrors:
                 error = 'That username is unavailable.'
             finally:
                 connection.close()
@@ -228,6 +230,7 @@ def register():
 
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10 per minute')
 def login():
     error, username = None, ''
     if request.method == 'POST':
@@ -269,3 +272,25 @@ def assign_legacy_drafts(username):
     finally:
         connection.close()
     click.echo(f'Assigned {count} legacy drafts to {username}.')
+
+
+@app.get('/health')
+def health():
+    connection = database()
+    try:
+        connection.execute('SELECT 1 FROM users LIMIT 1').fetchone()
+    finally:
+        connection.close()
+    return {'status': 'ok'}
+
+
+@app.after_request
+def security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    if production:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000'
+    if request.path.startswith('/drafts') or request.path in ['/login', '/register']:
+        response.headers['Cache-Control'] = 'no-store'
+    return response

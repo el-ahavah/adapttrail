@@ -242,3 +242,20 @@ flask --app app assign-legacy-drafts YOUR_USERNAME
 ```
 
 Use this only for drafts you own. It leaves already assigned drafts unchanged. Back up the SQLite file before migration or reassignment.
+
+
+## Hosted deployment preparation
+
+`render.yaml` defines a Free Render web service and an external PostgreSQL database connection. There is no Render database trial in this configuration. Hosted deployment has not yet been completed or verified.
+
+1. Create a dedicated Supabase Free project for AdaptTrail.
+2. Apply `sql/hosted-schema.sql` to that project's SQL editor. Tables are stored in `adapttrail_private`, outside the exposed Data API. Do not expose this schema. The server database owner accesses it; Flask enforces draft ownership. These accounts use Flask authentication, not Supabase Auth.
+3. In Supabase's **Connect** dialog, copy the **Session pooler** connection string and insert the database password, percent-encoding reserved characters. Set this privately as `DATABASE_URL` in Render. Never commit it or paste it into public messages.
+4. Render's Blueprint generates `SECRET_KEY` and sets `APP_ENV=production`. Missing production settings stop startup instead of falling back to disposable SQLite storage.
+5. Deploy and verify registration, ownership isolation, restart persistence, and `/health` against the real database before inviting users.
+
+Local accounts and drafts are not automatically copied to the hosted database. Back them up before any future import. A free provider URL can be used initially; no custom domain is required.
+
+Production enables secure cookies, response security headers, and a basic sign-in/registration rate limit. The initial service uses one Gunicorn worker. Rate-limit counters are process-local and reset on restart; shared counters and trusted proxy-aware client addressing are future improvements. Password recovery and account deletion are still pending.
+
+For exports, use Supabase's database backup/export tooling; keep exported account hashes and draft data private. Hosted schema and full PostgreSQL workflows still require live verification. The local SQLite tests do not substitute for that check.
