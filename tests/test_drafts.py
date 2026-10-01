@@ -26,6 +26,40 @@ class DraftTests(unittest.TestCase):
         app.config['DATABASE'] = self.previous
         self.directory.cleanup()
 
+    def test_adaptation_history_order_privacy_and_saved_assessments(self):
+        from assessment import FIELDS
+        self.client.post('/drafts/new', data=self.data)
+        empty = self.client.get('/drafts/1/history')
+        self.assertEqual(empty.status_code, 200)
+        self.assertIn(b'No assessments or observations yet', empty.data)
+        record = dict(csrf_token=self.token, entry_date='2025-01-01',
+                      observation='<script>private lesson</script>', measurement='0',
+                      unit='litres', metric='Water used', period='One week', entry_type='baseline')
+        self.client.post('/drafts/1/progress', data=record)
+        answers = {key: 'unknown' for key in FIELDS}
+        answers.update(csrf_token=self.token, approach='rainwater', country='Nigeria',
+                       region='', crop='', resources='')
+        self.client.post('/drafts/1/assess', data=answers)
+        page = self.client.get('/drafts/1/history').get_data(as_text=True)
+        self.assertIn('&lt;script&gt;private lesson&lt;/script&gt;', page)
+        self.assertNotIn('<script>private lesson', page)
+        self.assertIn('0 litres', page)
+        self.assertIn('More information needed', page)
+        self.assertLess(page.index('Baseline recorded'), page.index('Project created'))
+        self.assertIn('/assessments/1', page)
+        stranger = app.test_client()
+        self.assertEqual(stranger.get('/drafts/1/history').status_code, 302)
+        stranger.get('/register')
+        with stranger.session_transaction() as session:
+            token = session['csrf_token']
+        stranger.post('/register', data=dict(csrf_token=token, username='bob',
+                       password='another-password-123', confirmation='another-password-123'))
+        stranger.post('/login', data=dict(csrf_token=token, username='bob', password='another-password-123'))
+        self.assertEqual(stranger.get('/drafts/1/history').status_code, 404)
+        self.assertNotIn('private lesson', stranger.get('/discover').get_data(as_text=True))
+        self.client.post('/drafts/1/delete', data=dict(csrf_token=self.token, confirm='delete'))
+        self.assertEqual(self.client.get('/drafts/1/history').status_code, 404)
+
     def test_save_reopen_and_escape(self):
         response = self.client.post('/drafts/new', data=self.data)
         self.assertEqual(response.status_code, 302)

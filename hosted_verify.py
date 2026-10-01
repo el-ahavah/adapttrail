@@ -54,6 +54,11 @@ def verify():
         assert b'More information needed' in alice.get(saved_assessment.headers['Location'], base_url='https://localhost').data
         assert bob.get(saved_assessment.headers['Location'], base_url='https://localhost').status_code == 404
         assert bob.get(path + '/assess', base_url='https://localhost').status_code == 404
+        history = alice.get(path + '/history', base_url='https://localhost')
+        assert history.status_code == 200
+        assert b'Verification observation' in history.data
+        assert b'More information needed' in history.data
+        assert bob.get(path + '/history', base_url='https://localhost').status_code == 404
         data['title'] = 'Updated verification draft'
         data['csrf_token'] = token(alice, path + '/edit')
         assert post(alice, path + '/edit', data).status_code == 302

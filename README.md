@@ -282,3 +282,10 @@ Hosted installation requires `sql/suitability-assessments.sql`. Local SQLite add
 Open a private project and choose **Preview publication**. Select the public title, general country, problem, action, reported outcome, and lessons. Preview and explicitly confirm permission before publishing. Discover lists real user stories separately from fictional demos, with a Self-reported label. Assessments, conditions, and progress records are not automatically published. Public snapshots require explicit republishing to update. Unpublishing removes public access while retaining private data; previous visitors may retain copies. Deleting a private project removes its publication and reports.
 
 Visitors can submit reports for operator review. Reports do not automatically hide content. Operators with server access can use `flask --app app review-reports`, `flask --app app moderate-story STORY_ID`, and `flask --app app moderate-story STORY_ID --restore`. A moderation-hidden story cannot be republished by its owner. Review is manual; reports are not automatically sent as notifications. Hosted installations require `sql/community-publication.sql`.
+
+
+### Private adaptation history
+
+Open a project and select **View adaptation history**. The timeline combines project creation, linked saved assessments, and progress observations in date order. Observation dates are user supplied; creation and assessment dates use UTC. Zero measurements remain visible, and missing measurements are labelled. Assessment links reopen the saved context and rule version.
+
+The source of inspiration, project status, and publication state show their current values. This is not a complete audit log of edits, status changes, or publication events. History is owner-only and is never automatically published. Deleting a project removes its linked history records. No weather feed, verified impact, or causal claim is implied.

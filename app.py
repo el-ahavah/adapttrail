@@ -119,6 +119,26 @@ def draft_detail(draft_id):
 DRAFT_FIELDS = ['title', 'country', 'problem', 'approach', 'conditions', 'source_id']
 
 
+@app.get('/drafts/<int:draft_id>/history')
+def project_history(draft_id):
+    draft = get_draft(draft_id)
+    connection = database()
+    try:
+        progress = connection.execute('SELECT * FROM progress_entries WHERE project_id=? ORDER BY entry_date,id', (draft_id,)).fetchall()
+        assessments = connection.execute('SELECT * FROM assessments WHERE project_id=? AND user_id=? ORDER BY id', (draft_id,g.user['id'])).fetchall()
+        publication = connection.execute('SELECT * FROM publications WHERE project_id=?', (draft_id,)).fetchone()
+    finally:
+        connection.close()
+    events = [dict(date=str(draft['created_at'])[:10], kind='project', record=draft)]
+    events += [dict(date=entry['entry_date'], kind='progress', record=entry) for entry in progress]
+    events += [dict(date=str(record['created_at'])[:10], kind='assessment', record=record,
+                    result=json.loads(record['result'])) for record in assessments]
+    events.sort(key=lambda event: event['date'])
+    source = next((p for p in PROJECTS if p['id'] == draft['source_id']), None)
+    return render_template('project_history.html', draft=draft, events=events,
+                           publication=publication, source=source)
+
+
 def check_csrf():
     token = request.form.get('csrf_token', '')
     if not token or not hmac.compare_digest(token, session.get('csrf_token', '')):
