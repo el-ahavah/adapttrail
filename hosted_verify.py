@@ -40,6 +40,12 @@ def verify():
         csrf_bob = token(bob, '/drafts')
         assert post(bob, path + '/edit', data | dict(csrf_token=csrf_bob)).status_code == 404
         assert post(bob, path + '/delete', dict(csrf_token=csrf_bob, confirm='delete')).status_code == 404
+        progress = dict(csrf_token=token(alice, path + '/progress'), entry_date='2026-01-01', observation='Verification observation', measurement='0', unit='litres', metric='Water used', period='One week', entry_type='baseline')
+        assert post(alice, path + '/progress', progress).status_code == 302
+        assert b'Verification observation' in alice.get(path + '/progress', base_url='https://localhost').data
+        assert bob.get(path + '/progress', base_url='https://localhost').status_code == 404
+        assert post(bob, path + '/progress', progress | dict(csrf_token=csrf_bob)).status_code == 404
+        assert post(alice, path + '/status', dict(csrf_token=progress['csrf_token'],status='ongoing')).status_code == 302
         data['title'] = 'Updated verification draft'
         data['csrf_token'] = token(alice, path + '/edit')
         assert post(alice, path + '/edit', data).status_code == 302

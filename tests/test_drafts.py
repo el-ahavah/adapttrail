@@ -130,6 +130,47 @@ class DraftTests(unittest.TestCase):
     def test_missing_draft(self):
         self.assertEqual(self.client.get('/drafts/999').status_code, 404)
 
+    def test_progress_persistence_validation_status_and_deletion(self):
+        self.client.post('/drafts/new', data=self.data)
+        record = dict(csrf_token=self.token, entry_date='2026-01-01', observation='Initial reading', measurement='0', unit='litres', metric='Water used', period='One week', entry_type='baseline')
+        self.assertEqual(self.client.post('/drafts/1/progress', data=record).status_code, 302)
+        for changes in [dict(measurement='NaN'), dict(measurement='-1'), dict(unit=''), dict(entry_date='invalid'), dict(csrf_token='bad')]:
+            self.assertEqual(self.client.post('/drafts/1/progress', data=record | changes).status_code, 400)
+        notes = record | dict(measurement='', unit='', metric='', period='', entry_type='observation', observation='Notes only')
+        self.assertEqual(self.client.post('/drafts/1/progress', data=notes).status_code, 302)
+        self.assertIn('No measurement recorded.', self.client.get('/drafts/1/progress').get_data(as_text=True))
+        self.assertEqual(self.client.post('/drafts/1/status', data=dict(csrf_token=self.token,status='ongoing')).status_code, 302)
+        self.assertEqual(self.client.post('/drafts/1/status', data=dict(csrf_token=self.token,status='invalid')).status_code, 400)
+        connection = database()
+        try:
+            self.assertEqual(connection.execute('SELECT COUNT(*) FROM progress_entries').fetchone()[0], 2)
+            self.assertEqual(connection.execute('SELECT status FROM drafts').fetchone()[0], 'ongoing')
+        finally:
+            connection.close()
+        other = app.test_client()
+        with other.session_transaction() as session:
+            session['user_id'] = 999
+        self.assertEqual(other.get('/drafts/1/progress').status_code, 302)
+        connection = database()
+        try:
+            with connection:
+                connection.execute("INSERT INTO users (username,password_hash) VALUES ('bob','unused')")
+            bob_id = connection.execute("SELECT id FROM users WHERE username='bob'").fetchone()[0]
+        finally:
+            connection.close()
+        with other.session_transaction() as session:
+            session['user_id'] = bob_id
+            session['csrf_token'] = 'bob-token'
+        self.assertEqual(other.get('/drafts/1/progress').status_code, 404)
+        self.assertEqual(other.post('/drafts/1/progress', data=record | dict(csrf_token='bob-token')).status_code, 404)
+        self.assertEqual(other.post('/drafts/1/status', data=dict(csrf_token='bob-token',status='completed')).status_code, 404)
+        self.client.post('/drafts/1/delete', data=dict(csrf_token=self.token,confirm='delete'))
+        connection = database()
+        try:
+            self.assertEqual(connection.execute('SELECT COUNT(*) FROM progress_entries').fetchone()[0], 0)
+        finally:
+            connection.close()
+
 
 if __name__ == '__main__':
     unittest.main()

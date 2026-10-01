@@ -259,3 +259,10 @@ Local accounts and drafts are not automatically copied to the hosted database. B
 Production enables secure cookies, response security headers, and a basic sign-in/registration rate limit. The initial service uses one Gunicorn worker. Rate-limit counters are process-local and reset on restart; shared counters and trusted proxy-aware client addressing are future improvements. Password recovery and account deletion are still pending.
 
 For exports, use Supabase's database backup/export tooling; keep exported account hashes and draft data private. Hosted schema and full PostgreSQL workflows still require live verification. The local SQLite tests do not substitute for that check.
+
+
+## Progress tracking (implemented)
+
+Open a private project, save its status as Planned, Ongoing, or Completed, then choose **Track progress**. Add dated observations, a baseline, or follow-up measurements. Measurements require a metric, unit, and period; missing measurements are not zero. History is chronological and private to the owner. Deleting a project also deletes its progress entries after the existing confirmation. Progress entries cannot yet be edited individually, and there are no automatic comparisons or charts.
+
+Local SQLite upgrades automatically. Hosted PostgreSQL requires applying `sql/progress-tracking.sql` before deploying this release. This migration preserves existing drafts and adds the private progress table with backend-only permissions.

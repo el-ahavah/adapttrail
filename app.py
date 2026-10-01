@@ -8,6 +8,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import hmac
 import re
+from datetime import date
+from decimal import Decimal, InvalidOperation
 import click
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -294,3 +296,69 @@ def security_headers(response):
     if request.path.startswith('/drafts') or request.path in ['/login', '/register']:
         response.headers['Cache-Control'] = 'no-store'
     return response
+
+
+@app.post('/drafts/<int:draft_id>/status')
+def project_status(draft_id):
+    get_draft(draft_id)
+    check_csrf()
+    status = request.form.get('status')
+    if status not in {'planned', 'ongoing', 'completed'}:
+        abort(400)
+    connection = database()
+    try:
+        with connection:
+            connection.execute('UPDATE drafts SET status=? WHERE id=? AND user_id=?', (status, draft_id, g.user['id']))
+    finally:
+        connection.close()
+    return redirect(url_for('draft_detail', draft_id=draft_id))
+
+
+@app.route('/drafts/<int:draft_id>/progress', methods=['GET', 'POST'])
+def project_progress(draft_id):
+    draft = get_draft(draft_id)
+    values = dict(entry_date=date.today().isoformat(), observation='', measurement='', unit='', metric='', period='', entry_type='observation')
+    errors = []
+    if request.method == 'POST':
+        check_csrf()
+        values = {key: request.form.get(key, '').strip() for key in values}
+        try:
+            recorded = date.fromisoformat(values['entry_date'])
+            if recorded > date.today():
+                errors.append('Observation date cannot be in the future.')
+        except ValueError:
+            errors.append('Enter a valid observation date.')
+        if not values['observation'] or len(values['observation']) > 3000:
+            errors.append('Write an observation of 1–3000 characters.')
+        if values['entry_type'] not in {'observation', 'baseline', 'follow-up'}:
+            errors.append('Choose a valid entry type.')
+        for key in ['unit', 'metric', 'period']:
+            if len(values[key]) > 120:
+                errors.append(f'{key.capitalize()} must be 120 characters or fewer.')
+        if values['measurement']:
+            try:
+                amount = Decimal(values['measurement'])
+                if not amount.is_finite() or amount < 0 or amount > Decimal('1000000000000'):
+                    raise InvalidOperation
+                values['measurement'] = str(amount)
+            except (InvalidOperation, ValueError):
+                errors.append('Measurement must be a finite non-negative number up to one trillion.')
+            if not all(values[key] for key in ['unit', 'metric', 'period']):
+                errors.append('For a measurement, provide its metric, unit, and measurement period.')
+        elif any(values[key] for key in ['unit', 'metric', 'period']) or values['entry_type'] != 'observation':
+            errors.append('Provide a measurement, or use an observation without measurement fields.')
+        if not errors:
+            connection = database()
+            try:
+                with connection:
+                    connection.execute('INSERT INTO progress_entries (project_id,entry_date,observation,measurement,unit,metric,period,entry_type) VALUES (?,?,?,?,?,?,?,?)',
+                        (draft_id, values['entry_date'], values['observation'], values['measurement'] or None, values['unit'], values['metric'], values['period'], values['entry_type']))
+            finally:
+                connection.close()
+            return redirect(url_for('project_progress', draft_id=draft_id))
+    connection = database()
+    try:
+        entries = connection.execute('SELECT * FROM progress_entries WHERE project_id=? ORDER BY entry_date,id', (draft_id,)).fetchall()
+    finally:
+        connection.close()
+    return render_template('progress.html', draft=draft, values=values, errors=errors, entries=entries), (400 if errors else 200)

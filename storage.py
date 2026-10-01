@@ -33,6 +33,7 @@ def connect(config):
         return PostgresConnection(config['DATABASE_URL'])
     connection = sqlite3.connect(config['DATABASE'])
     connection.row_factory = sqlite3.Row
+    connection.execute('PRAGMA foreign_keys = ON')
     connection.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL)')
     connection.execute('''CREATE TABLE IF NOT EXISTS drafts (
         id INTEGER PRIMARY KEY, title TEXT NOT NULL, country TEXT NOT NULL,
@@ -41,5 +42,13 @@ def connect(config):
         user_id INTEGER REFERENCES users(id))''')
     if 'user_id' not in {row['name'] for row in connection.execute('PRAGMA table_info(drafts)')}:
         connection.execute('ALTER TABLE drafts ADD COLUMN user_id INTEGER REFERENCES users(id)')
+    if 'status' not in {row['name'] for row in connection.execute('PRAGMA table_info(drafts)')}:
+        connection.execute("ALTER TABLE drafts ADD COLUMN status TEXT NOT NULL DEFAULT 'planned'")
+    connection.execute("""CREATE TABLE IF NOT EXISTS progress_entries (
+        id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES drafts(id) ON DELETE CASCADE,
+        entry_date TEXT NOT NULL, observation TEXT NOT NULL, measurement TEXT,
+        unit TEXT NOT NULL, metric TEXT NOT NULL, period TEXT NOT NULL,
+        entry_type TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )""")
     connection.commit()
     return connection
