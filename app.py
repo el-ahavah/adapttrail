@@ -8,6 +8,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import hmac
 import re
+import json
+from assessment import FIELDS, VERSION, assess
 from datetime import date
 from decimal import Decimal, InvalidOperation
 import click
@@ -198,7 +200,7 @@ def load_user():
             connection.close()
         if g.user is None:
             session.clear()
-    if request.path.startswith('/drafts') and g.user is None:
+    if request.path.startswith(('/drafts', '/assess')) and g.user is None:
         return redirect(url_for('login'))
 
 
@@ -293,7 +295,7 @@ def security_headers(response):
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     if production:
         response.headers['Strict-Transport-Security'] = 'max-age=31536000'
-    if request.path.startswith('/drafts') or request.path in ['/login', '/register']:
+    if request.path.startswith(('/drafts', '/assess')) or request.path in ['/login', '/register']:
         response.headers['Cache-Control'] = 'no-store'
     return response
 
@@ -362,3 +364,59 @@ def project_progress(draft_id):
     finally:
         connection.close()
     return render_template('progress.html', draft=draft, values=values, errors=errors, entries=entries), (400 if errors else 200)
+
+
+@app.route('/assess/<approach>', methods=['GET', 'POST'])
+@app.route('/drafts/<int:draft_id>/assess', methods=['GET', 'POST'])
+def assess_approach(approach=None, draft_id=None):
+    draft = get_draft(draft_id) if draft_id is not None else None
+    if draft is not None:
+        approach = request.form.get('approach', draft['source_id'] or 'water-log')
+    if approach not in {p['id'] for p in PROJECTS}:
+        abort(400 if request.method == 'POST' else 404)
+    values = {key: 'unknown' for key in FIELDS}
+    values.update(country=draft['country'] if draft else '', region='', crop='', resources='')
+    errors = []
+    if request.method == 'POST':
+        check_csrf()
+        values = {key: request.form.get(key, '').strip() for key in values}
+        for key, (label, choices) in FIELDS.items():
+            if values[key] not in choices:
+                errors.append(f'Choose a valid value for {label.lower()}.')
+        for key in ['country','region','crop','resources']:
+            if len(values[key]) > 300:
+                errors.append(f'{key.capitalize()} must be 300 characters or fewer.')
+        if not errors:
+            result = assess(approach, values)
+            connection = database()
+            try:
+                with connection:
+                    cursor = connection.execute('INSERT INTO assessments (user_id,project_id,approach,inputs,result,rule_version) VALUES (?,?,?,?,?,?) RETURNING id',
+                        (g.user['id'], draft_id, approach, json.dumps(values), json.dumps(result), VERSION))
+                    assessment_id = cursor.fetchone()['id']
+            finally:
+                connection.close()
+            return redirect(url_for('assessment_result', assessment_id=assessment_id))
+    return render_template('assess.html', draft=draft, approach=approach, projects=PROJECTS, fields=FIELDS, values=values, errors=errors), (400 if errors else 200)
+
+
+@app.get('/assessments')
+def assessment_history():
+    connection = database()
+    try:
+        records = connection.execute('SELECT * FROM assessments WHERE user_id=? ORDER BY id DESC', (g.user['id'],)).fetchall()
+    finally:
+        connection.close()
+    return render_template('assessments.html', records=records)
+
+
+@app.get('/assessments/<int:assessment_id>')
+def assessment_result(assessment_id):
+    connection = database()
+    try:
+        record = connection.execute('SELECT * FROM assessments WHERE id=? AND user_id=?', (assessment_id,g.user['id'])).fetchone()
+    finally:
+        connection.close()
+    if record is None:
+        abort(404)
+    return render_template('assessment_result.html', record=record, result=json.loads(record['result']), inputs=json.loads(record['inputs']))

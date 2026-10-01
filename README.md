@@ -266,3 +266,12 @@ For exports, use Supabase's database backup/export tooling; keep exported accoun
 Open a private project, save its status as Planned, Ongoing, or Completed, then choose **Track progress**. Add dated observations, a baseline, or follow-up measurements. Measurements require a metric, unit, and period; missing measurements are not zero. History is chronological and private to the owner. Deleting a project also deletes its progress entries after the existing confirmation. Progress entries cannot yet be edited individually, and there are no automatic comparisons or charts.
 
 Local SQLite upgrades automatically. Hosted PostgreSQL requires applying `sql/progress-tracking.sql` before deploying this release. This migration preserves existing drafts and adds the private progress table with backend-only permissions.
+
+
+## Preliminary suitability checks (implemented)
+
+Choose **Assess this approach** on a Discover story, or **Assess an approach** on your private project. Sign-in is required to save answers. Assessment history is private to its owner and stores the input context, result, timestamp, and rule version. Assessments linked to a project are removed when that project is deleted.
+
+This first engine provides explained planning checks for soil cover, rainwater collection, and water monitoring. It flags unknown information and reported constraints; it does not calculate validated suitability scores. General references are linked in results. Rules are provisional and have not received independent practitioner review. Location, crop, and resources are recorded as context rather than used for unsupported local predictions. No weather API or AI is integrated. The feature remains optional.
+
+Hosted installation requires `sql/suitability-assessments.sql`. Local SQLite adds the table automatically. Public sharing, translations, specialist review, and automatic weather context remain future work.

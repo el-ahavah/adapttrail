@@ -171,6 +171,44 @@ class DraftTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_assessment_storage_unknowns_and_ownership(self):
+        from assessment import FIELDS
+        data = {key: 'unknown' for key in FIELDS}
+        data.update(csrf_token=self.token,country='Nigeria',region='',crop='',resources='')
+        saved = self.client.post('/assess/rainwater', data=data)
+        self.assertEqual(saved.status_code, 302)
+        page = self.client.get(saved.location).get_data(as_text=True)
+        self.assertIn('More information needed', page)
+        self.assertIn('No weather data was fetched', page)
+        connection = database()
+        try:
+            self.assertEqual(connection.execute('SELECT COUNT(*) FROM assessments').fetchone()[0], 1)
+            with connection:
+                connection.execute("INSERT INTO users (username,password_hash) VALUES ('bob','unused')")
+            bob_id = connection.execute("SELECT id FROM users WHERE username='bob'").fetchone()[0]
+        finally:
+            connection.close()
+        bob = app.test_client()
+        with bob.session_transaction() as session:
+            session['user_id'] = bob_id
+        self.assertEqual(bob.get(saved.location).status_code, 404)
+        self.assertNotIn('rainwater', bob.get('/assessments').get_data(as_text=True))
+        self.assertEqual(self.client.post('/assess/rainwater', data=data | dict(soil='invalid')).status_code, 400)
+        self.assertEqual(self.client.post('/assess/rainwater', data=data | dict(csrf_token='bad')).status_code, 400)
+        self.client.post('/drafts/new', data=self.data)
+        self.assertEqual(self.client.get('/drafts/1/assess').status_code, 200)
+        self.assertEqual(bob.get('/drafts/1/assess').status_code, 404)
+
+    def test_rule_results_are_action_specific(self):
+        from assessment import FIELDS, assess
+        values = {key:'unknown' for key in FIELDS}
+        result = assess('rainwater', values | dict(roof='no',use='drinking or cooking'))
+        self.assertTrue(any('missing' in check for check in result['checks']))
+        self.assertTrue(any('water-quality' in check for check in result['checks']))
+        mulch = assess('garden-mulch', values | dict(drainage='poor'))
+        self.assertTrue(any('poor drainage' in check for check in mulch['checks']))
+        self.assertNotIn('Collection surface available?', mulch['missing'])
+
 
 if __name__ == '__main__':
     unittest.main()

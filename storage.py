@@ -50,5 +50,11 @@ def connect(config):
         unit TEXT NOT NULL, metric TEXT NOT NULL, period TEXT NOT NULL,
         entry_type TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )""")
+    connection.execute("""CREATE TABLE IF NOT EXISTS assessments (
+        id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
+        project_id INTEGER REFERENCES drafts(id) ON DELETE CASCADE,
+        approach TEXT NOT NULL, inputs TEXT NOT NULL, result TEXT NOT NULL,
+        rule_version TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )""")
     connection.commit()
     return connection

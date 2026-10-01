@@ -46,6 +46,14 @@ def verify():
         assert bob.get(path + '/progress', base_url='https://localhost').status_code == 404
         assert post(bob, path + '/progress', progress | dict(csrf_token=csrf_bob)).status_code == 404
         assert post(alice, path + '/status', dict(csrf_token=progress['csrf_token'],status='ongoing')).status_code == 302
+        from assessment import FIELDS
+        answers = {key: 'unknown' for key in FIELDS}
+        answers.update(csrf_token=token(alice, path + '/assess'), approach='rainwater', country='Test country',region='',crop='',resources='')
+        saved_assessment = post(alice, path + '/assess', answers)
+        assert saved_assessment.status_code == 302
+        assert b'More information needed' in alice.get(saved_assessment.headers['Location'], base_url='https://localhost').data
+        assert bob.get(saved_assessment.headers['Location'], base_url='https://localhost').status_code == 404
+        assert bob.get(path + '/assess', base_url='https://localhost').status_code == 404
         data['title'] = 'Updated verification draft'
         data['csrf_token'] = token(alice, path + '/edit')
         assert post(alice, path + '/edit', data).status_code == 302
