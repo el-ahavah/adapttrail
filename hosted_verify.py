@@ -63,6 +63,14 @@ def verify():
             assert row['title'] == 'Updated verification draft'
         finally:
             connection.close()
+        public = dict(csrf_token=token(alice,path + '/publish'),title='Temporary public test',country='',problem='Test problem',action='Test action',outcome='',lessons='Test lessons',intent='publish',consent='yes')
+        published = post(alice,path + '/publish',public)
+        assert published.status_code == 302
+        visitor = app.test_client()
+        assert visitor.get(published.headers['Location'],base_url='https://localhost').status_code == 200
+        assert post(bob,path + '/unpublish',dict(csrf_token=csrf_bob)).status_code == 404
+        assert post(alice,path + '/unpublish',dict(csrf_token=public['csrf_token'])).status_code == 302
+        assert visitor.get(published.headers['Location'],base_url='https://localhost').status_code == 404
         csrf = token(alice, path + '/delete')
         assert alice.get(path, base_url='https://localhost').status_code == 200
         assert post(alice, path + '/delete', dict(csrf_token=csrf, confirm='delete')).status_code == 302

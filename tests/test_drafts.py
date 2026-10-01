@@ -209,6 +209,31 @@ class DraftTests(unittest.TestCase):
         self.assertTrue(any('poor drainage' in check for check in mulch['checks']))
         self.assertNotIn('Collection surface available?', mulch['missing'])
 
+    def test_publication_preview_privacy_unpublish_and_moderation(self):
+        self.client.post('/drafts/new', data=self.data | dict(conditions='PRIVATE SOIL NOTES'))
+        values = dict(csrf_token=self.token,title='Public garden story',country='Nigeria',problem='Water use',action='Monitor use',outcome='',lessons='Measure consistently',intent='preview')
+        self.assertEqual(self.client.post('/drafts/1/publish', data=values).status_code, 200)
+        self.assertEqual(self.client.get('/community/1').status_code, 404)
+        self.assertEqual(self.client.post('/drafts/1/publish', data=values | dict(intent='publish')).status_code, 400)
+        response = self.client.post('/drafts/1/publish', data=values | dict(intent='publish',consent='yes'))
+        self.assertEqual(response.status_code, 302)
+        visitor = app.test_client()
+        page = visitor.get(response.location).get_data(as_text=True)
+        self.assertIn('Public garden story', page)
+        self.assertNotIn('PRIVATE SOIL NOTES', page)
+        self.assertIn('Public garden story', visitor.get('/discover').get_data(as_text=True))
+        with visitor.session_transaction() as session:
+            token = session['csrf_token']
+        self.assertEqual(visitor.post(response.location, data=dict(csrf_token=token,reason='Misleading measurement claims')).status_code, 200)
+        self.assertEqual(app.test_cli_runner().invoke(args=['moderate-story','1']).exit_code, 0)
+        self.assertEqual(visitor.get(response.location).status_code, 404)
+        self.assertEqual(self.client.post('/drafts/1/publish', data=values | dict(intent='publish',consent='yes')).status_code, 403)
+        self.assertEqual(app.test_cli_runner().invoke(args=['moderate-story','1','--restore']).exit_code, 0)
+        self.assertEqual(visitor.get(response.location).status_code, 200)
+        self.assertEqual(self.client.post('/drafts/1/unpublish', data=dict(csrf_token=self.token)).status_code, 302)
+        self.assertEqual(visitor.get(response.location).status_code, 404)
+        self.assertEqual(self.client.get('/drafts/1').status_code, 200)
+
 
 if __name__ == '__main__':
     unittest.main()

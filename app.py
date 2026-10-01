@@ -64,7 +64,7 @@ def discover():
     action = request.args.get('action', '')
     projects = [p for p in PROJECTS if not action or p['action'] == action]
     return render_template('discover.html', projects=projects, action=action,
-                           actions=sorted({p['action'] for p in PROJECTS}))
+                           actions=sorted({p['action'] for p in PROJECTS} | {'Community project'}), community=published_stories(action))
 
 @app.get('/projects/<project_id>')
 def project_detail(project_id):
@@ -420,3 +420,125 @@ def assessment_result(assessment_id):
     if record is None:
         abort(404)
     return render_template('assessment_result.html', record=record, result=json.loads(record['result']), inputs=json.loads(record['inputs']))
+
+
+PUBLIC_FIELDS = ['title','country','problem','action','outcome','lessons']
+
+
+def published_stories(action):
+    if action and action != 'Community project':
+        return []
+    connection = database()
+    try:
+        return connection.execute('SELECT * FROM publications WHERE published=1 AND hidden=0 ORDER BY id DESC').fetchall()
+    finally:
+        connection.close()
+
+
+@app.route('/drafts/<int:draft_id>/publish', methods=['GET','POST'])
+def publish_project(draft_id):
+    draft = get_draft(draft_id)
+    connection = database()
+    try:
+        previous = connection.execute('SELECT * FROM publications WHERE project_id=?', (draft_id,)).fetchone()
+    finally:
+        connection.close()
+    if previous and previous['hidden']:
+        return render_template('publication_blocked.html'), 403
+    values = dict(previous) if previous else dict(title=draft['title'],country=draft['country'],problem=draft['problem'],action=draft['approach'],outcome='',lessons='')
+    errors, preview = [], False
+    if request.method == 'POST':
+        check_csrf()
+        values = {key: request.form.get(key,'').strip() for key in PUBLIC_FIELDS}
+        for key in PUBLIC_FIELDS:
+            maximum = 120 if key in ['title','country'] else 3000
+            if len(values[key]) > maximum or (key in ['title','problem','action','lessons'] and not values[key]):
+                errors.append(f'Check {key}: required fields must be filled and text must stay within {maximum} characters.')
+        intent = request.form.get('intent')
+        if intent not in ['preview','publish']:
+            errors.append('Choose preview or publish.')
+        if intent == 'publish' and request.form.get('consent') != 'yes':
+            errors.append('Confirm permission to share this story publicly.')
+        if not errors and intent == 'publish':
+            connection = database()
+            try:
+                with connection:
+                    cursor = connection.execute("""INSERT INTO publications (project_id,title,country,problem,action,outcome,lessons)
+                        VALUES (?,?,?,?,?,?,?) ON CONFLICT(project_id) DO UPDATE SET
+                        title=excluded.title,country=excluded.country,problem=excluded.problem,
+                        action=excluded.action,outcome=excluded.outcome,lessons=excluded.lessons,
+                        published=1,updated_at=CURRENT_TIMESTAMP RETURNING id""",
+                        (draft_id,) + tuple(values[key] for key in PUBLIC_FIELDS))
+                    publication_id = cursor.fetchone()['id']
+            finally:
+                connection.close()
+            return redirect(url_for('community_story', publication_id=publication_id))
+        preview = not errors
+    return render_template('publish.html', draft=draft, values=values, errors=errors, preview=preview, fields=PUBLIC_FIELDS), (400 if errors else 200)
+
+
+@app.post('/drafts/<int:draft_id>/unpublish')
+def unpublish_project(draft_id):
+    get_draft(draft_id)
+    check_csrf()
+    connection = database()
+    try:
+        with connection:
+            connection.execute('UPDATE publications SET published=0 WHERE project_id=?', (draft_id,))
+    finally:
+        connection.close()
+    return redirect(url_for('draft_detail', draft_id=draft_id))
+
+
+@app.route('/community/<int:publication_id>', methods=['GET','POST'])
+@limiter.limit('10 per minute', methods=['POST'])
+def community_story(publication_id):
+    connection = database()
+    try:
+        story = connection.execute('SELECT * FROM publications WHERE id=? AND published=1 AND hidden=0', (publication_id,)).fetchone()
+    finally:
+        connection.close()
+    if story is None:
+        abort(404)
+    reported, error = False, None
+    if request.method == 'POST':
+        check_csrf()
+        reason = request.form.get('reason','').strip()
+        if not 10 <= len(reason) <= 1000:
+            error = 'Explain the issue in 10–1000 characters.'
+        else:
+            connection = database()
+            try:
+                with connection:
+                    connection.execute('INSERT INTO story_reports (publication_id,reason) VALUES (?,?)', (publication_id,reason))
+            finally:
+                connection.close()
+            reported = True
+    return render_template('community_story.html', story=story, reported=reported, error=error), (400 if error else 200)
+
+
+@app.cli.command('moderate-story')
+@click.argument('publication_id', type=int)
+@click.option('--restore', is_flag=True, help='Restore a previously hidden story after review.')
+def moderate_story(publication_id, restore):
+    connection = database()
+    try:
+        with connection:
+            cursor = connection.execute('UPDATE publications SET hidden=? WHERE id=?', (0 if restore else 1,publication_id))
+            if cursor.rowcount == 0:
+                raise click.ClickException('Story not found.')
+            connection.execute('UPDATE story_reports SET resolved=1 WHERE publication_id=?', (publication_id,))
+    finally:
+        connection.close()
+    click.echo('Story restored.' if restore else 'Story hidden pending moderation.')
+
+
+@app.cli.command('review-reports')
+def review_reports():
+    connection = database()
+    try:
+        reports = connection.execute('SELECT id,publication_id,reason,created_at FROM story_reports WHERE resolved=0 ORDER BY id').fetchall()
+    finally:
+        connection.close()
+    for report in reports:
+        click.echo(f"Report {report['id']} | Story {report['publication_id']} | {report['created_at']} | {report['reason']}")

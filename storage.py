@@ -56,5 +56,17 @@ def connect(config):
         approach TEXT NOT NULL, inputs TEXT NOT NULL, result TEXT NOT NULL,
         rule_version TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )""")
+    connection.execute("""CREATE TABLE IF NOT EXISTS publications (
+        id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL UNIQUE REFERENCES drafts(id) ON DELETE CASCADE,
+        title TEXT NOT NULL, country TEXT NOT NULL, problem TEXT NOT NULL,
+        action TEXT NOT NULL, outcome TEXT NOT NULL, lessons TEXT NOT NULL,
+        published INTEGER NOT NULL DEFAULT 1, hidden INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )""")
+    connection.execute("""CREATE TABLE IF NOT EXISTS story_reports (
+        id INTEGER PRIMARY KEY, publication_id INTEGER NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+        reason TEXT NOT NULL, resolved INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )""")
     connection.commit()
     return connection
