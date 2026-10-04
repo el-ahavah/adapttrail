@@ -1,5 +1,5 @@
 """Transparent preliminary checks, not a validated suitability scoring model."""
-VERSION = 'preliminary-1'
+VERSION = 'preliminary-2-weather'
 FIELDS = {
  'climate': ('Climate (self-reported)', ['unknown','seasonal','dry','wet','temperate']),
  'soil': ('Soil type', ['unknown','sandy','clay','loam','not applicable']),

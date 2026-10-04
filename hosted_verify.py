@@ -54,6 +54,27 @@ def verify():
         assert b'More information needed' in alice.get(saved_assessment.headers['Location'], base_url='https://localhost').data
         assert bob.get(saved_assessment.headers['Location'], base_url='https://localhost').status_code == 404
         assert bob.get(path + '/assess', base_url='https://localhost').status_code == 404
+        # Provider connectivity is optional; outages must preserve assessment saving.
+        weather_answers = answers | dict(intent='search_weather', weather_query='Otukpo', weather_location='')
+        searched = post(alice, path + '/assess', weather_answers)
+        assert searched.status_code in (200,400)
+        with alice.session_transaction() as saved_session:
+            locations = saved_session.get('weather_locations', [])
+        if locations:
+            weather_answers.update(intent='save',weather_location=locations[0]['id'])
+            weather_saved = post(alice,path + '/assess',weather_answers)
+            assert weather_saved.status_code == 302
+            weather_page = alice.get(weather_saved.headers['Location'],base_url='https://localhost')
+            assert weather_page.status_code == 200
+            assert bob.get(weather_saved.headers['Location'],base_url='https://localhost').status_code == 404
+            if b'Saved weather context' in weather_page.data:
+                print('AdaptTrail live weather provider check passed: location search, forecast snapshot and owner-only access.', flush=True)
+            else:
+                assert b'weather' in weather_page.data.lower()
+                print('AdaptTrail weather provider unavailable: assessment fallback passed.', flush=True)
+        else:
+            print('AdaptTrail weather location service unavailable: optional lookup fallback passed.', flush=True)
+
         history = alice.get(path + '/history', base_url='https://localhost')
         assert history.status_code == 200
         assert b'Verification observation' in history.data

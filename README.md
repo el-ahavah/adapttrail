@@ -289,3 +289,12 @@ Visitors can submit reports for operator review. Reports do not automatically hi
 Open a project and select **View adaptation history**. The timeline combines project creation, linked saved assessments, and progress observations in date order. Observation dates are user supplied; creation and assessment dates use UTC. Zero measurements remain visible, and missing measurements are labelled. Assessment links reopen the saved context and rule version.
 
 The source of inspiration, project status, and publication state show their current values. This is not a complete audit log of edits, status changes, or publication events. History is owner-only and is never automatically published. Deleting a project removes its linked history records. No weather feed, verified impact, or causal claim is implied.
+
+
+### Optional weather context
+
+Assessment forms let users search a town, confirm a named match, and optionally save weather context. Open-Meteo receives the search term and selected town coordinates; no device geolocation is requested. The private assessment saves yesterday's model estimate and a three-day forecast of temperature and precipitation, source attribution, timezone and retrieval time. Reopening an assessment shows its original snapshot, not refreshed weather.
+
+Weather adds conditional planning notes alongside self-reported drainage and growth stage. Soil, crop and resource context remain important; no validated crop-specific thresholds, drought prediction, yield prediction or suitability score is provided. Provider errors, null data and timeouts never turn into fabricated zero measurements; the assessment still saves without weather guidance.
+
+The fixed API endpoints have four-second timeouts, a bounded 15-minute memory cache, and no retries. Open-Meteo's free endpoint is for non-commercial use with rate limits and no uptime guarantee: https://open-meteo.com/en/pricing . No paid subscription or API key is configured. Attribution: Open-Meteo, CC BY 4.0. No schema migration is needed; snapshots use existing assessment JSON storage.

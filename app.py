@@ -10,6 +10,7 @@ import hmac
 import re
 import json
 from assessment import FIELDS, VERSION, assess
+from weather import search_locations, forecast, planning_notes, WeatherUnavailable
 from datetime import date
 from decimal import Decimal, InvalidOperation
 import click
@@ -388,6 +389,7 @@ def project_progress(draft_id):
 
 @app.route('/assess/<approach>', methods=['GET', 'POST'])
 @app.route('/drafts/<int:draft_id>/assess', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['POST'])
 def assess_approach(approach=None, draft_id=None):
     draft = get_draft(draft_id) if draft_id is not None else None
     if draft is not None:
@@ -395,7 +397,7 @@ def assess_approach(approach=None, draft_id=None):
     if approach not in {p['id'] for p in PROJECTS}:
         abort(400 if request.method == 'POST' else 404)
     values = {key: 'unknown' for key in FIELDS}
-    values.update(country=draft['country'] if draft else '', region='', crop='', resources='')
+    values.update(country=draft['country'] if draft else '', region='', crop='', resources='', weather_query='', weather_location='')
     errors = []
     if request.method == 'POST':
         check_csrf()
@@ -406,8 +408,36 @@ def assess_approach(approach=None, draft_id=None):
         for key in ['country','region','crop','resources']:
             if len(values[key]) > 300:
                 errors.append(f'{key.capitalize()} must be 300 characters or fewer.')
+        if len(values['weather_query']) > 120:
+            errors.append('Town search must be 120 characters or fewer.')
+        if request.form.get('intent') == 'search_weather':
+            session.pop('weather_locations', None)
+            if len(values['weather_query']) < 3:
+                errors.append('Enter at least three characters to search for a town.')
+            if not errors:
+                try:
+                    session['weather_locations'] = search_locations(values['weather_query'])
+                    if not session['weather_locations']:
+                        errors.append('No matching towns. Try a nearby town, or save without weather.')
+                except WeatherUnavailable as error:
+                    errors.append(str(error))
+            return render_template('assess.html', draft=draft, approach=approach, projects=PROJECTS,
+                                   fields=FIELDS, values=values, errors=errors,
+                                   locations=session.get('weather_locations', [])), (400 if errors else 200)
+        location = next((item for item in session.get('weather_locations', [])
+                         if item['id'] == values['weather_location']), None)
+        if values['weather_location'] and location is None:
+            errors.append('Search again and select a matching town, or choose no weather.')
         if not errors:
             result = assess(approach, values)
+            if location:
+                try:
+                    result['weather'] = forecast(location)
+                    result['weather_notes'] = planning_notes(approach, values, result['weather'])
+                    result['limitation'] = result['limitation'].replace('No weather data was fetched.', 'Optional weather context is included separately below.')
+                except WeatherUnavailable as error:
+                    result['weather_error'] = str(error)
+
             connection = database()
             try:
                 with connection:
@@ -417,7 +447,7 @@ def assess_approach(approach=None, draft_id=None):
             finally:
                 connection.close()
             return redirect(url_for('assessment_result', assessment_id=assessment_id))
-    return render_template('assess.html', draft=draft, approach=approach, projects=PROJECTS, fields=FIELDS, values=values, errors=errors), (400 if errors else 200)
+    return render_template('assess.html', draft=draft, approach=approach, projects=PROJECTS, fields=FIELDS, values=values, errors=errors, locations=session.get('weather_locations', [])), (400 if errors else 200)
 
 
 @app.get('/assessments')
