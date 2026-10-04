@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% block title %}Adaptation notes · AdaptTrail{% endblock %}{% block content %}
+<a href="{{ url_for('draft_detail', draft_id=draft.id) }}">← Project</a><h1>Edit your adaptation plan.</h1><p>These notes stay private and show your current plan.</p>
+{% if errors %}<aside class="notice" role="alert">{% for error in errors %}<p>{{ error }}</p>{% endfor %}</aside>{% endif %}
+<form method="post" class="draft-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">{% include 'adaptation_fields.html' %}<button class="button">Save adaptation notes</button></form>{% endblock %}

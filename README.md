@@ -298,3 +298,12 @@ Assessment forms let users search a town, confirm a named match, and optionally 
 Weather adds conditional planning notes alongside self-reported drainage and growth stage. Soil, crop and resource context remain important; no validated crop-specific thresholds, drought prediction, yield prediction or suitability score is provided. Provider errors, null data and timeouts never turn into fabricated zero measurements; the assessment still saves without weather guidance.
 
 The fixed API endpoints have four-second timeouts, a bounded 15-minute memory cache, and no retries. Open-Meteo's free endpoint is for non-commercial use with rate limits and no uptime guarantee: https://open-meteo.com/en/pricing . No paid subscription or API key is configured. Attribution: Open-Meteo, CC BY 4.0. No schema migration is needed; snapshots use existing assessment JSON storage.
+
+
+### Adapt community projects
+
+A public community story now offers **Adapt this project**. Signed-in users create a new private project with a reviewed title, their own country, problem, action and conditions, and required notes on what they will change and why. Only the source's public problem and action are suggested; outcomes, lessons, assessments and private progress are not copied.
+
+A separate ancestry record retains the source title and link. Current changes and reasons can be edited from the private project and appear in its private history view. These note edits are not an audit log. The source owner cannot read another person's private adaptation. Publishing remains explicit and shows a public source link while the source is available; adaptation notes are not automatically published.
+
+Unpublished or moderated stories cannot be used to create new adaptations. Existing adaptations remain private and usable after the source is withdrawn or deleted; source deletion clears the foreign key while retaining the title for the adapter's private record. Deleting an adaptation deletes its ancestry record. Hosted setup requires `sql/community-adaptations.sql`; backend-only permissions and RLS match the existing private schema.

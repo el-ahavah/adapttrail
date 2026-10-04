@@ -94,13 +94,26 @@ def verify():
         assert published.status_code == 302
         visitor = app.test_client()
         assert visitor.get(published.headers['Location'],base_url='https://localhost').status_code == 200
+        source_id = published.headers['Location'].rsplit('/',1)[1]
+        adapt_path = '/drafts/from-community/' + source_id
+        adapted = post(bob,adapt_path,dict(csrf_token=token(bob,adapt_path),title='Temporary adaptation',
+            country='Test country',problem='Local problem',approach='Local approach',conditions='',
+            changes='Private adaptation plan',reason='Private local constraint'))
+        assert adapted.status_code == 302
+        child_path = adapted.headers['Location']
+        assert b'Private adaptation plan' in bob.get(child_path,base_url='https://localhost').data
+        assert alice.get(child_path,base_url='https://localhost').status_code == 404
+        assert b'Private adaptation plan' not in visitor.get(published.headers['Location'],base_url='https://localhost').data
         assert post(bob,path + '/unpublish',dict(csrf_token=csrf_bob)).status_code == 404
         assert post(alice,path + '/unpublish',dict(csrf_token=public['csrf_token'])).status_code == 302
         assert visitor.get(published.headers['Location'],base_url='https://localhost').status_code == 404
+        assert b'no longer publicly available' in bob.get(child_path,base_url='https://localhost').data
         csrf = token(alice, path + '/delete')
         assert alice.get(path, base_url='https://localhost').status_code == 200
         assert post(alice, path + '/delete', dict(csrf_token=csrf, confirm='delete')).status_code == 302
         assert alice.get(path, base_url='https://localhost').status_code == 404
+        assert bob.get(child_path,base_url='https://localhost').status_code == 200
+        assert post(bob,child_path + '/delete',dict(csrf_token=token(bob,child_path + '/delete'),confirm='delete')).status_code == 302
         csrf = token(alice, '/drafts')
         assert post(alice, '/logout', dict(csrf_token=csrf)).status_code == 302
         assert alice.get('/drafts', base_url='https://localhost').status_code == 302

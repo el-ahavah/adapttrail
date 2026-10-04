@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Adaptation history · {{ draft.title }}{% endblock %}
+{% block title %}Adaptation history · {{ draft.title }}{% include 'adaptation_source.html' %}{% endblock %}
 {% block content %}
 <a href="{{ url_for('draft_detail', draft_id=draft.id) }}">← Project</a>
 <p class="eyebrow">Private adaptation history</p>
@@ -27,4 +27,4 @@
 <div class="draft-actions"><a class="button" href="{{ url_for('project_progress', draft_id=draft.id) }}">Add progress or lessons</a><a href="{{ url_for('assess_approach', draft_id=draft.id) }}">Assess an approach</a></div>
 {% if publication %}<section class="next"><h2>Current sharing state</h2><p>{% if publication.hidden %}Story held for moderation.{% elif publication.published %}A public story is available. <a href="{{ url_for('community_story', publication_id=publication.id) }}">View public story</a>{% else %}Story unpublished; your private records are retained.{% endif %}</p><p class="note">This shows the current state, not a history of publication or status changes. Project edits and this private timeline do not automatically update your public story.</p></section>{% endif %}
 <p class="note">Deleting the project also deletes its linked assessments and progress. This timeline is a view of saved records, not a complete audit log of edits.</p>
-{% endblock %}
+{% include 'adaptation_source.html' %}{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% block title %}Adapt a community project · AdaptTrail{% endblock %}{% block content %}
+<a href="{{ url_for('community_story', publication_id=story.id) }}">← Source story</a>
+<h1>Make this approach your own.</h1><p>Inspired by: {{ story.title }}</p>
+<aside class="notice">This creates a private project. The source is self-reported, not a verified recommendation. Review the suggested problem and action for your own conditions. Outcomes, lessons and private records are not copied.</aside>
+{% if errors %}<aside class="notice" role="alert">{% for error in errors %}<p>{{ error }}</p>{% endfor %}</aside>{% endif %}
+<form method="post" class="draft-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+{% for key,label in [('title','Your project title'),('country','Your country'),('problem','What problem are you addressing?'),('approach','What do you plan to try?'),('conditions','Your conditions and resources (optional)')] %}
+<label for="{{ key }}">{{ label }}</label>{% if key in ['title','country'] %}<input id="{{ key }}" name="{{ key }}" value="{{ values[key] }}" maxlength="120" required>{% else %}<textarea id="{{ key }}" name="{{ key }}" rows="4" maxlength="3000" {% if key != 'conditions' %}required{% endif %}>{{ values[key] }}</textarea>{% endif %}
+{% endfor %}{% include 'adaptation_fields.html' %}
+<p class="note">Your changes and reasons stay private. If you later publish a story, its public source link will appear while the original story remains available. The original contributor cannot see your private project.</p>
+<button class="button">Create private adaptation</button></form>{% endblock %}

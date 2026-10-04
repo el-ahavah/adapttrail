@@ -114,7 +114,7 @@ def new_draft():
 def draft_detail(draft_id):
     draft = get_draft(draft_id)
     source = next((p for p in PROJECTS if p['id'] == draft['source_id']), None)
-    return render_template('draft_detail.html', draft=draft, source=source)
+    return render_template('draft_detail.html', draft=draft, source=source, adaptation=get_adaptation(draft_id))
 
 
 DRAFT_FIELDS = ['title', 'country', 'problem', 'approach', 'conditions', 'source_id']
@@ -137,7 +137,7 @@ def project_history(draft_id):
     events.sort(key=lambda event: event['date'])
     source = next((p for p in PROJECTS if p['id'] == draft['source_id']), None)
     return render_template('project_history.html', draft=draft, events=events,
-                           publication=publication, source=source)
+                           publication=publication, source=source, adaptation=get_adaptation(draft_id))
 
 
 def check_csrf():
@@ -564,7 +564,7 @@ def community_story(publication_id):
             finally:
                 connection.close()
             reported = True
-    return render_template('community_story.html', story=story, reported=reported, error=error), (400 if error else 200)
+    return render_template('community_story.html', story=story, reported=reported, error=error, adaptation=get_adaptation(story['project_id'])), (400 if error else 200)
 
 
 @app.cli.command('moderate-story')
@@ -592,3 +592,87 @@ def review_reports():
         connection.close()
     for report in reports:
         click.echo(f"Report {report['id']} | Story {report['publication_id']} | {report['created_at']} | {report['reason']}")
+
+
+
+def get_adaptation(draft_id):
+    """Call after ownership check, or for a currently public story's ancestry."""
+    connection = database()
+    try:
+        return connection.execute("""SELECT a.*,p.id AS available_source_id
+            FROM adaptations a LEFT JOIN publications p
+            ON p.id=a.publication_id AND p.published=1 AND p.hidden=0
+            WHERE a.project_id=?""", (draft_id,)).fetchone()
+    finally:
+        connection.close()
+
+
+def adaptation_notes(form):
+    values = {key: form.get(key, '').strip() for key in ['changes','reason']}
+    errors = []
+    for key, value in values.items():
+        if not value or len(value) > 3000:
+            errors.append(f'{key.capitalize()} must contain 1–3000 characters.')
+    return values, errors
+
+
+@app.route('/drafts/from-community/<int:publication_id>', methods=['GET','POST'])
+def adapt_community(publication_id):
+    connection = database()
+    try:
+        story = connection.execute('SELECT * FROM publications WHERE id=? AND published=1 AND hidden=0', (publication_id,)).fetchone()
+    finally:
+        connection.close()
+    if story is None:
+        abort(404)
+    values = dict(title=('Adaptation: ' + story['title'])[:120], country='',
+                  problem=story['problem'], approach=story['action'], conditions='',
+                  source_id='', changes='', reason='')
+    errors = []
+    if request.method == 'POST':
+        check_csrf()
+        values, errors = validate_draft(request.form)
+        notes, note_errors = adaptation_notes(request.form)
+        values.update(notes)
+        errors += note_errors
+        # Community ancestry is set by this route, never by an editable form ID.
+        values['source_id'] = ''
+        if not errors:
+            connection = database()
+            try:
+                with connection:
+                    cursor = connection.execute('INSERT INTO drafts (title,country,problem,approach,conditions,source_id,user_id) VALUES (?,?,?,?,?,?,?) RETURNING id',
+                        tuple(values[key] for key in DRAFT_FIELDS) + (g.user['id'],))
+                    draft_id = cursor.fetchone()['id']
+                    cursor = connection.execute("""INSERT INTO adaptations (project_id,publication_id,source_title,changes,reason)
+                        SELECT ?,id,title,?,? FROM publications WHERE id=? AND published=1 AND hidden=0""",
+                        (draft_id, values['changes'], values['reason'], publication_id))
+                    if cursor.rowcount != 1:
+                        abort(404)
+            finally:
+                connection.close()
+            return redirect(url_for('draft_detail', draft_id=draft_id))
+    return render_template('adapt_community.html', story=story, values=values, errors=errors), (400 if errors else 200)
+
+
+@app.route('/drafts/<int:draft_id>/adaptation', methods=['GET','POST'])
+def edit_adaptation(draft_id):
+    draft = get_draft(draft_id)
+    adaptation = get_adaptation(draft_id)
+    if adaptation is None:
+        abort(404)
+    values = dict(changes=adaptation['changes'], reason=adaptation['reason'])
+    errors = []
+    if request.method == 'POST':
+        check_csrf()
+        values, errors = adaptation_notes(request.form)
+        if not errors:
+            connection = database()
+            try:
+                with connection:
+                    connection.execute('UPDATE adaptations SET changes=?,reason=? WHERE project_id=?',
+                                       (values['changes'],values['reason'],draft_id))
+            finally:
+                connection.close()
+            return redirect(url_for('draft_detail', draft_id=draft_id))
+    return render_template('adaptation_notes.html', draft=draft, values=values, errors=errors), (400 if errors else 200)
