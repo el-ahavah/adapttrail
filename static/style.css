@@ -2,3 +2,5 @@
 .draft-form{display:grid;gap:12px;max-width:720px}.draft-form label{font-weight:650;margin-top:15px}.draft-form input,.draft-form textarea{font:inherit;padding:12px;border:1px solid #8c9d83;border-radius:5px;width:100%;background:white;color:var(--ink)}.draft-form .button{justify-self:start;margin-top:15px}.preserve{white-space:pre-wrap;overflow-wrap:anywhere}
 .draft-actions{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin:24px 0}
 .nav-button{border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:0}nav{align-items:center;flex-wrap:wrap}
+
+.weather-table{overflow-x:auto}.weather-table table{width:100%;border-collapse:collapse}.weather-table th,.weather-table td{text-align:left;padding:12px;border-bottom:1px solid #8c9d83}.weather-table th{font-weight:650}
