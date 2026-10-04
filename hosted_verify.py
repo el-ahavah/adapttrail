@@ -114,6 +114,17 @@ def verify():
         assert alice.get(path, base_url='https://localhost').status_code == 404
         assert bob.get(child_path,base_url='https://localhost').status_code == 200
         assert post(bob,child_path + '/delete',dict(csrf_token=token(bob,child_path + '/delete'),confirm='delete')).status_code == 302
+        for documented_id in ['niger-tahoua','burkina-stone-bunds','nigeria-newmap','ethiopia-calm','bangladesh-floating','india-cool-roofs']:
+            assert visitor.get('/projects/' + documented_id,base_url='https://localhost').status_code == 200
+        documented_path = '/drafts/from-documented/niger-tahoua'
+        documented_saved = post(bob,documented_path,dict(csrf_token=token(bob,documented_path),title='Temporary documented adaptation',
+            country='Test country',problem='Local test problem',approach='Trial approach',conditions='',changes='Private external-source change',reason='Local test reason'))
+        assert documented_saved.status_code == 302
+        documented_child = documented_saved.headers['Location']
+        assert b'/projects/niger-tahoua' in bob.get(documented_child,base_url='https://localhost').data
+        assert alice.get(documented_child,base_url='https://localhost').status_code == 404
+        assert bob.get(documented_child + '/assess',base_url='https://localhost').status_code == 200
+        assert post(bob,documented_child + '/delete',dict(csrf_token=token(bob,documented_child + '/delete'),confirm='delete')).status_code == 302
         csrf = token(alice, '/drafts')
         assert post(alice, '/logout', dict(csrf_token=csrf)).status_code == 302
         assert alice.get('/drafts', base_url='https://localhost').status_code == 302

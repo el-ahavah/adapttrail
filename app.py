@@ -9,6 +9,7 @@ from flask_limiter.util import get_remote_address
 import hmac
 import re
 import json
+from documented_projects import DOCUMENTED_PROJECTS
 from assessment import FIELDS, VERSION, assess
 from weather import search_locations, forecast, planning_notes, WeatherUnavailable
 from datetime import date
@@ -65,14 +66,15 @@ def discover():
     action = request.args.get('action', '')
     projects = [p for p in PROJECTS if not action or p['action'] == action]
     return render_template('discover.html', projects=projects, action=action,
-                           actions=sorted({p['action'] for p in PROJECTS} | {'Community project'}), community=published_stories(action))
+                           actions=sorted({p['action'] for p in PROJECTS + DOCUMENTED_PROJECTS} | {'Community project'}), community=published_stories(action),
+                           documented=[p for p in DOCUMENTED_PROJECTS if not action or p['action'] == action])
 
 @app.get('/projects/<project_id>')
 def project_detail(project_id):
-    project = next((p for p in PROJECTS if p['id'] == project_id), None)
+    project = next((p for p in PROJECTS + DOCUMENTED_PROJECTS if p['id'] == project_id), None)
     if project is None:
         abort(404)
-    return render_template('project.html', project=project)
+    return render_template('documented_project.html' if project.get('kind') == 'documented' else 'project.html', project=project)
 
 @app.errorhandler(404)
 def not_found(error):
@@ -156,7 +158,7 @@ def validate_draft(form):
         limit = 120 if key in ['title', 'country', 'source_id'] else 3000
         if len(value) > limit:
             errors.append(f'{key.capitalize()} must be {limit} characters or fewer.')
-    if values['source_id'] and values['source_id'] not in {p['id'] for p in PROJECTS}:
+    if values['source_id'] and values['source_id'] not in {p['id'] for p in PROJECTS + DOCUMENTED_PROJECTS}:
         errors.append('Choose an available source project.')
     return values, errors
 
@@ -178,7 +180,7 @@ def edit_draft(draft_id):
     values, errors = dict(draft), []
     if request.method == 'POST':
         check_csrf()
-        values, errors = validate_draft(request.form)
+        values, errors = validate_draft(dict(request.form) | ({'source_id': draft['source_id']} if get_adaptation(draft_id) else {}))
         if not errors:
             connection = database()
             try:
@@ -393,7 +395,7 @@ def project_progress(draft_id):
 def assess_approach(approach=None, draft_id=None):
     draft = get_draft(draft_id) if draft_id is not None else None
     if draft is not None:
-        approach = request.form.get('approach', draft['source_id'] or 'water-log')
+        approach = request.form.get('approach', draft['source_id'] if draft['source_id'] in {p['id'] for p in PROJECTS} else 'water-log')
     if approach not in {p['id'] for p in PROJECTS}:
         abort(400 if request.method == 'POST' else 404)
     values = {key: 'unknown' for key in FIELDS}
@@ -599,10 +601,15 @@ def get_adaptation(draft_id):
     """Call after ownership check, or for a currently public story's ancestry."""
     connection = database()
     try:
-        return connection.execute("""SELECT a.*,p.id AS available_source_id
-            FROM adaptations a LEFT JOIN publications p
+        record = connection.execute("""SELECT a.*,d.source_id AS documented_source_id,p.id AS available_source_id
+            FROM adaptations a JOIN drafts d ON d.id=a.project_id LEFT JOIN publications p
             ON p.id=a.publication_id AND p.published=1 AND p.hidden=0
             WHERE a.project_id=?""", (draft_id,)).fetchone()
+        if record is None:
+            return None
+        values = dict(record)
+        values['documented_source'] = next((p for p in DOCUMENTED_PROJECTS if p['id'] == record['documented_source_id']), None)
+        return values
     finally:
         connection.close()
 
@@ -676,3 +683,34 @@ def edit_adaptation(draft_id):
                 connection.close()
             return redirect(url_for('draft_detail', draft_id=draft_id))
     return render_template('adaptation_notes.html', draft=draft, values=values, errors=errors), (400 if errors else 200)
+
+
+
+@app.route('/drafts/from-documented/<project_id>', methods=['GET','POST'])
+def adapt_documented(project_id):
+    project = next((p for p in DOCUMENTED_PROJECTS if p['id'] == project_id), None)
+    if project is None:
+        abort(404)
+    values = dict(title=('Adaptation: ' + project['title'])[:120],country='',problem=project['problem'],
+                  approach=project['approach'],conditions='',source_id=project_id,changes='',reason='')
+    errors = []
+    if request.method == 'POST':
+        check_csrf()
+        values, errors = validate_draft(dict(request.form) | {'source_id':project_id})
+        notes, note_errors = adaptation_notes(request.form)
+        values.update(notes)
+        errors += note_errors
+        if not errors:
+            connection = database()
+            try:
+                with connection:
+                    cursor = connection.execute('INSERT INTO drafts (title,country,problem,approach,conditions,source_id,user_id) VALUES (?,?,?,?,?,?,?) RETURNING id',
+                        tuple(values[key] for key in DRAFT_FIELDS) + (g.user['id'],))
+                    draft_id = cursor.fetchone()['id']
+                    connection.execute('INSERT INTO adaptations (project_id,publication_id,source_title,changes,reason) VALUES (?,NULL,?,?,?)',
+                                       (draft_id,project['title'],values['changes'],values['reason']))
+            finally:
+                connection.close()
+            return redirect(url_for('draft_detail',draft_id=draft_id))
+    return render_template('adapt_community.html',story=project,source_url=url_for('project_detail',project_id=project_id),
+                           documented_source=True,values=values,errors=errors), (400 if errors else 200)
