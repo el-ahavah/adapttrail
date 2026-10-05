@@ -224,6 +224,8 @@ def load_user():
         if g.user is None:
             session.clear()
     if request.path.startswith(('/drafts', '/assess')) and g.user is None:
+        if request.method == 'GET' and safe_return_path(request.path):
+            session['return_after_login'] = request.path
         return redirect(url_for('login'))
 
 
@@ -272,9 +274,10 @@ def login():
         if len(password) > 128 or user is None or not check_password_hash(user['password_hash'], password):
             error = 'Incorrect username or password.'
         else:
+            destination = session.get('return_after_login', '')
             session.clear()
             session['user_id'] = user['id']
-            return redirect(url_for('drafts'))
+            return redirect(destination if safe_return_path(destination) else url_for('drafts'))
     return render_template('auth.html', registering=False, error=error, username=username), (400 if error else 200)
 
 
@@ -395,8 +398,8 @@ def project_progress(draft_id):
 def assess_approach(approach=None, draft_id=None):
     draft = get_draft(draft_id) if draft_id is not None else None
     if draft is not None:
-        approach = request.form.get('approach', draft['source_id'] if draft['source_id'] in {p['id'] for p in PROJECTS} else 'water-log')
-    if approach not in {p['id'] for p in PROJECTS}:
+        approach = request.form.get('approach', draft['source_id'] if draft['source_id'] in {p['id'] for p in PROJECTS} else '')
+    if approach not in {p['id'] for p in PROJECTS} and not (draft is not None and request.method == 'GET' and approach == ''):
         abort(400 if request.method == 'POST' else 404)
     values = {key: 'unknown' for key in FIELDS}
     values.update(country=draft['country'] if draft else '', region='', crop='', resources='', weather_query='', weather_location='')
@@ -714,3 +717,14 @@ def adapt_documented(project_id):
             return redirect(url_for('draft_detail',draft_id=draft_id))
     return render_template('adapt_community.html',story=project,source_url=url_for('project_detail',project_id=project_id),
                            documented_source=True,values=values,errors=errors), (400 if errors else 200)
+
+
+
+def safe_return_path(path):
+    return isinstance(path,str) and re.fullmatch(
+        r'/drafts(?:/new|/from-community/[0-9]+|/from-documented/[a-z0-9-]+|/[0-9]+(?:/(?:edit|delete|history|progress|assess|adaptation|publish))?)?|/assess/(?:rainwater|garden-mulch|water-log)', path) is not None
+
+
+@app.get('/how-to-use')
+def how_to_use():
+    return render_template('how_to_use.html')

@@ -314,3 +314,12 @@ Unpublished or moderated stories cannot be used to create new adaptations. Exist
 Discover now leads with six editorial summaries from World Bank, FAO and UNEP sources: Tahoua restoration (Niger), Yatenga stone bunds (Burkina Faso), NEWMAP (Nigeria), CALM (Ethiopia), floating gardens (Bangladesh), and Ahmedabad cool roofs (India). `documented_projects.py` stores original-source URLs, publishers, publication dates or explicitly missing dates, check dates, reported outcomes and limitations. Summaries are paraphrased; no source photos or full articles are copied. Local checks and recordkeeping prompts are explicitly AdaptTrail suggestions. These are external examples, not user submissions, expert ratings or endorsements. Historical reporting is not represented as current project performance.
 
 Signed-in users can adapt each example into a private project and edit their changes and reasons. The original source link is retained across project edits and is visible if they explicitly publish a story; private adaptation notes remain private. Existing assessments cover only the three original basic water-related approaches and do not rate external techniques. Old fictional demos remain in a collapsed practice section, preserving their assessment links. No new database migration is required.
+
+
+### Journey review and pilot preparation
+
+The public **How to use** page explains source labels, privacy, supported assessments, optional weather, progress, history and publication. An anonymous user selecting an adaptation form now returns there after registration and login. Return destinations are restricted to internal GET pages; external URLs and action paths are rejected.
+
+Projects without a supported demo approach now require explicit selection of a supported assessment. External examples never silently default to water monitoring or acquire an unsupported technique rating. Broader suitability rules still need local expert review.
+
+See [the pilot guide](docs/PILOT.md) for an initial task-based usability pilot and feedback questions. The help page does not collect or send feedback, and no pilot invitations or real participant outcomes are included in this change. Do not commit identifiable feedback to this public repository.

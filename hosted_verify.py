@@ -18,13 +18,17 @@ def verify():
         return client.post(path, data=data, base_url='https://localhost')
 
     try:
+        destination = '/drafts/from-documented/niger-tahoua'
         for client, name in zip(clients, names):
+            assert client.get(destination,base_url='https://localhost').status_code == 302
             csrf = token(client, '/register')
             assert post(client, '/register', dict(csrf_token=csrf, username=name,
                 password=password, confirmation=password)).status_code == 302
             csrf = token(client, '/login')
-            assert post(client, '/login', dict(csrf_token=csrf, username=name,
-                password=password)).status_code == 302
+            signed_in = post(client, '/login', dict(csrf_token=csrf, username=name,password=password))
+            assert signed_in.status_code == 302
+            assert signed_in.headers['Location'] == destination
+            assert client.get(destination,base_url='https://localhost').status_code == 200
         alice, bob = clients
         csrf = token(alice, '/drafts/new')
         data = dict(csrf_token=csrf, title='Temporary verification draft',
@@ -123,7 +127,10 @@ def verify():
         documented_child = documented_saved.headers['Location']
         assert b'/projects/niger-tahoua' in bob.get(documented_child,base_url='https://localhost').data
         assert alice.get(documented_child,base_url='https://localhost').status_code == 404
-        assert bob.get(documented_child + '/assess',base_url='https://localhost').status_code == 200
+        assessment_form = bob.get(documented_child + '/assess',base_url='https://localhost')
+        assert assessment_form.status_code == 200
+        assert b'Choose a supported approach' in assessment_form.data
+        assert visitor.get('/how-to-use',base_url='https://localhost').status_code == 200
         assert post(bob,documented_child + '/delete',dict(csrf_token=token(bob,documented_child + '/delete'),confirm='delete')).status_code == 302
         csrf = token(alice, '/drafts')
         assert post(alice, '/logout', dict(csrf_token=csrf)).status_code == 302
