@@ -18,6 +18,10 @@ def verify():
         return client.post(path, data=data, base_url='https://localhost')
 
     try:
+        public_client = app.test_client()
+        assert b'/static/app.js' in public_client.get('/',base_url='https://localhost').data
+        for asset in ['app.js','style.css','landscape.svg']:
+            assert public_client.get('/static/' + asset,base_url='https://localhost').status_code == 200
         destination = '/drafts/from-documented/niger-tahoua'
         for client, name in zip(clients, names):
             assert client.get(destination,base_url='https://localhost').status_code == 302
