@@ -488,7 +488,7 @@ def assessment_result(assessment_id):
         connection.close()
     if record is None:
         abort(404)
-    return render_template('assessment_result.html', record=record, result=json.loads(record['result']), inputs=json.loads(record['inputs']))
+    return render_template('assessment_result.html', record=record, result=json.loads(record['result']), inputs=json.loads(record['inputs']), fields=FIELDS)
 
 
 PUBLIC_FIELDS = ['title','country','problem','action','outcome','lessons']

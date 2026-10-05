@@ -193,6 +193,27 @@ class DraftTests(unittest.TestCase):
         self.assertNotIn('More information needed', private)
         self.assertIn('Start with a challenge you know.', private)
 
+    def test_result_design_handles_complete_and_standalone_snapshots(self):
+        from assessment import FIELDS
+        answers = {key: choices[1][1] for key, choices in FIELDS.items()}
+        answers.update(csrf_token=self.token, country='Nigeria', region='', crop='<script>crop</script>', resources='')
+        standalone = self.client.post('/assess/water-log', data=answers)
+        self.assertEqual(standalone.status_code, 302)
+        page = self.client.get(standalone.location).get_data(as_text=True)
+        self.assertIn('Local checks identified', page)
+        self.assertIn('0 information gaps', page)
+        self.assertIn('&lt;script&gt;crop&lt;/script&gt;', page)
+        self.assertNotIn('<script>crop</script>', page)
+        self.assertIn('href="/assess/water-log"', page)
+        self.assertNotIn('Record an observation', page)
+        self.assertIn('No weather snapshot was included', page)
+        self.client.post('/drafts/new', data=self.data)
+        saved = self.client.post('/drafts/1/assess', data=answers | dict(approach='water-log'))
+        page = self.client.get(saved.location).get_data(as_text=True)
+        for target in ['/drafts/1/assess', '/drafts/1/progress', '/drafts/1']:
+            self.assertIn('href="' + target + '"', page)
+        self.assertIn('Record an observation', page)
+
     def test_missing_draft(self):
         self.assertEqual(self.client.get('/drafts/999').status_code, 404)
 

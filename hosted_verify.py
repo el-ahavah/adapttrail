@@ -60,6 +60,10 @@ def verify():
         saved_assessment = post(alice, path + '/assess', answers)
         assert saved_assessment.status_code == 302
         assert b'More information needed' in alice.get(saved_assessment.headers['Location'], base_url='https://localhost').data
+        result_page = alice.get(saved_assessment.headers['Location'], base_url='https://localhost')
+        assert b'Factors you provided' in result_page.data
+        assert b'Assess again' in result_page.data
+        assert b'Record an observation' in result_page.data
         assert bob.get(saved_assessment.headers['Location'], base_url='https://localhost').status_code == 404
         assert bob.get(path + '/assess', base_url='https://localhost').status_code == 404
         dashboard = alice.get('/drafts', base_url='https://localhost')
