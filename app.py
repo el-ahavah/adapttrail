@@ -85,10 +85,24 @@ def not_found(error):
 def drafts():
     connection = database()
     try:
-        records = connection.execute('SELECT * FROM drafts WHERE user_id = ? ORDER BY id DESC', (g.user['id'],)).fetchall()
+        records = connection.execute("""SELECT d.*,
+            (SELECT COUNT(*) FROM assessments a WHERE a.project_id=d.id AND a.user_id=?) AS assessment_count,
+            (SELECT COUNT(*) FROM progress_entries p WHERE p.project_id=d.id) AS progress_count
+            FROM drafts d WHERE d.user_id=? ORDER BY d.id DESC""", (g.user['id'], g.user['id'])).fetchall()
+        recent_assessments = connection.execute("""SELECT a.*, d.title AS project_title
+            FROM assessments a LEFT JOIN drafts d ON d.id=a.project_id AND d.user_id=a.user_id
+            WHERE a.user_id=? ORDER BY a.id DESC LIMIT 5""", (g.user['id'],)).fetchall()
+        assessment_count = connection.execute('SELECT COUNT(*) AS total FROM assessments WHERE user_id=?', (g.user['id'],)).fetchone()['total']
+        recent_progress = connection.execute("""SELECT p.*, d.title AS project_title
+            FROM progress_entries p JOIN drafts d ON d.id=p.project_id
+            WHERE d.user_id=? ORDER BY p.created_at DESC, p.id DESC LIMIT 5""", (g.user['id'],)).fetchall()
     finally:
         connection.close()
-    return render_template('drafts.html', drafts=records)
+    return render_template('drafts.html', drafts=records,
+                           recent_assessments=[dict(record) | {'guidance': json.loads(record['result'])['status']} for record in recent_assessments],
+                           recent_progress=recent_progress, assessment_count=assessment_count,
+                           progress_count=sum(record['progress_count'] for record in records),
+                           ongoing_count=sum(record['status'] == 'ongoing' for record in records))
 
 
 @app.route('/drafts/new', methods=['GET', 'POST'])

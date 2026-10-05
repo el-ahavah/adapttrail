@@ -62,6 +62,12 @@ def verify():
         assert b'More information needed' in alice.get(saved_assessment.headers['Location'], base_url='https://localhost').data
         assert bob.get(saved_assessment.headers['Location'], base_url='https://localhost').status_code == 404
         assert bob.get(path + '/assess', base_url='https://localhost').status_code == 404
+        dashboard = alice.get('/drafts', base_url='https://localhost')
+        assert dashboard.status_code == 200
+        assert b'Your next step starts here.' in dashboard.data
+        assert b'Verification observation' in dashboard.data
+        assert b'More information needed' in dashboard.data
+        assert b'Verification observation' not in bob.get('/drafts', base_url='https://localhost').data
         # Provider connectivity is optional; outages must preserve assessment saving.
         weather_answers = answers | dict(intent='search_weather', weather_query='Otukpo', weather_location='')
         searched = post(alice, path + '/assess', weather_answers)

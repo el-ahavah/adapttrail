@@ -161,6 +161,38 @@ class DraftTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn('Legacy record', self.client.get('/drafts').get_data(as_text=True))
 
+    def test_dashboard_activity_privacy_and_next_actions(self):
+        from assessment import FIELDS
+        empty = self.client.get('/drafts').get_data(as_text=True)
+        self.assertIn('Start with a challenge you know.', empty)
+        self.client.post('/drafts/new', data=self.data)
+        page = self.client.get('/drafts').get_data(as_text=True)
+        self.assertIn('Assess an approach', page)
+        self.assertIn('&lt;script&gt;alert(1)&lt;/script&gt;', page)
+        self.assertNotIn('<script>alert(1)</script>', page)
+        answers = {key: 'unknown' for key in FIELDS}
+        answers.update(csrf_token=self.token, approach='rainwater', country='Nigeria', region='', crop='', resources='')
+        self.client.post('/drafts/1/assess', data=answers)
+        record = dict(csrf_token=self.token, entry_date='2026-01-01', observation='Private dashboard lesson', measurement='0', unit='litres', metric='Water used', period='One week', entry_type='baseline')
+        self.client.post('/drafts/1/progress', data=record)
+        page = self.client.get('/drafts').get_data(as_text=True)
+        self.assertIn('Track progress', page)
+        self.assertIn('Private dashboard lesson', page)
+        self.assertIn('0 litres', page)
+        self.assertIn('More information needed', page)
+        self.client.post('/drafts/1/status', data=dict(csrf_token=self.token, status='completed'))
+        self.assertIn(b'Review project history', self.client.get('/drafts').data)
+        stranger = app.test_client()
+        stranger.get('/register')
+        with stranger.session_transaction() as session:
+            token = session['csrf_token']
+        stranger.post('/register', data=dict(csrf_token=token, username='dashboardbob', password='another-password-123', confirmation='another-password-123'))
+        stranger.post('/login', data=dict(csrf_token=token, username='dashboardbob', password='another-password-123'))
+        private = stranger.get('/drafts').get_data(as_text=True)
+        self.assertNotIn('Private dashboard lesson', private)
+        self.assertNotIn('More information needed', private)
+        self.assertIn('Start with a challenge you know.', private)
+
     def test_missing_draft(self):
         self.assertEqual(self.client.get('/drafts/999').status_code, 404)
 

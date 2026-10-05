@@ -330,3 +330,7 @@ See [the pilot guide](docs/PILOT.md) for an initial task-based usability pilot a
 The interface uses responsive layouts, a locally served illustrated landscape, forest-green accents, project cards and clearer source labels. A small deferred `static/app.js` adds the mobile navigation toggle, Escape-to-close, search within the current documented/community action filter, empty states, clearing search, and textarea character counts. Account and project submission remain server controlled. No third-party JavaScript or font CDN is added; the existing content security policy stays intact.
 
 Without JavaScript, navigation, server-side action filtering and all project workflows remain available. Animations respect reduced-motion preferences. The optional browser check at `scripts/verify-gui.cjs` requires a separately installed Playwright browser and a running app (`GUI_TEST_URL` defaults to localhost:5055). It checks rendering, search, mobile navigation, overflow and no-JavaScript navigation.
+
+### Personal dashboard
+
+The signed-in workspace at `/drafts` shows project and activity counts, private project cards with suggested next actions, and the five latest saved assessments and progress entries. New accounts receive a welcoming starting point. Counts describe saved activity, not verified outcomes.
