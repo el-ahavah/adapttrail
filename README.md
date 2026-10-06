@@ -340,3 +340,5 @@ Assessment results display preliminary guidance, information gaps, self-reported
 The project workspace groups the local plan, latest saved assessment, latest progress entry and publication visibility into clear sections. Project status remains self-reported.
 
 The assessment form groups setting, local conditions, resources and optional weather. JavaScript shows approach-relevant planning questions while retaining hidden answers. Without JavaScript, all fields remain available and saving works normally.
+
+Adaptation history uses a responsive timeline with dated project, assessment and observation cards. Optional JavaScript filters show assessments or observations; without JavaScript every record remains visible. Dates retain their existing meaning, and the timeline is not an audit log or evidence of verified impact.

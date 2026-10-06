@@ -1,28 +1,31 @@
 {% extends 'base.html' %}
-{% block title %}Adaptation history · {{ draft.title }}{% include 'adaptation_source.html' %}{% endblock %}
+{% block title %}Adaptation history · {{ draft.title }}{% endblock %}
 {% block content %}
-<a href="{{ url_for('draft_detail', draft_id=draft.id) }}">← Project</a>
+<a class="back" href="{{ url_for('draft_detail', draft_id=draft.id) }}">← Project</a>
 <p class="eyebrow">Private adaptation history</p>
 <h1>{{ draft.title }}</h1>
 <p>Current status: <strong>{{ draft.status|capitalize }}</strong> · {{ draft.country }}</p>
 <aside class="notice">Your saved assessments and observations, from earliest to latest. Observation dates are supplied by you; assessment and creation dates use UTC. This timeline does not verify impact or prove what caused a change.</aside>
 {% if source %}<section class="next"><h2>Current source of inspiration</h2><a href="{{ url_for('project_detail', project_id=source.id) }}">{{ source.title }}</a><p>Fictional demo source, not evidence of a successful adaptation.</p></section>{% endif %}
-<h2>Your timeline</h2>
-<ol class="story">
+<div class="section-heading"><div><p class="eyebrow">A record of your learning</p><h2>Your timeline</h2></div><span class="badge">{{ events|length }} saved records</span></div>
+<div class="timeline-filters" data-timeline-filters hidden aria-label="Filter timeline"><button type="button" data-timeline-filter="all" aria-pressed="true">All records</button><button type="button" data-timeline-filter="assessment" aria-pressed="false">Assessments</button><button type="button" data-timeline-filter="progress" aria-pressed="false">Observations</button></div>
+<p class="note" data-timeline-status aria-live="polite">Showing all saved records, earliest to latest.</p>
+<ol class="adaptation-timeline" data-timeline>
 {% for event in events %}
-<li><section class="next"><p class="eyebrow"><time datetime="{{ event.date }}">{{ event.date }}</time></p>
+<li class="timeline-event" data-event-kind="{{ event.kind }}"><div class="timeline-date"><time datetime="{{ event.date }}">{{ event.date }}</time><span>{{ {'project':'Project','assessment':'Assessment','progress':'Observation'}[event.kind] }}</span></div><section class="timeline-card">
 {% if event.kind == 'project' %}
 <h3>Project created</h3><p>Your private project was saved.</p>
 {% elif event.kind == 'assessment' %}
-<h3>Approach assessed: {{ event.record.approach }}</h3><p>{{ event.result.status }}</p><p class="note">Saved planning guidance · Rules {{ event.record.rule_version }}</p><a href="{{ url_for('assessment_result', assessment_id=event.record.id) }}">Read saved assessment and context</a>
+<h3>Approach assessed: {{ {'garden-mulch':'Soil cover','rainwater':'Rainwater collection','water-log':'Water monitoring'}.get(event.record.approach, event.record.approach) }}</h3><p>{{ event.result.status }}</p><p class="note">Saved planning guidance · Rules {{ event.record.rule_version }}</p><a href="{{ url_for('assessment_result', assessment_id=event.record.id) }}">Read saved assessment and context</a>
 {% else %}
 <h3>{{ event.record.entry_type|capitalize }} recorded</h3><p class="preserve">{{ event.record.observation }}</p>
-{% if event.record.measurement is not none %}<p>{{ event.record.metric }}: <strong>{{ event.record.measurement }} {{ event.record.unit }}</strong><br>Measurement period: {{ event.record.period }}</p>{% else %}<p>No measurement recorded.</p>{% endif %}
-<p class="note">Saved {{ event.record.created_at }} UTC</p>
+{% if event.record.measurement is not none and event.record.measurement != '' %}<p>{{ event.record.metric }}: <strong>{{ event.record.measurement }} {{ event.record.unit }}</strong><br>Measurement period: {{ event.record.period }}</p>{% else %}<p>No measurement recorded.</p>{% endif %}
+<p class="note">Saved {{ event.record.created_at }} UTC · observation date supplied by you</p><a class="text-link" href="{{ url_for('project_progress', draft_id=draft.id) }}">Review progress entries →</a>
 {% endif %}
 </section></li>
 {% endfor %}
 </ol>
+<p class="notice" data-timeline-empty hidden>No saved records match this filter yet. Choose All records to return to your timeline.</p>
 {% if events|length == 1 %}<p>No assessments or observations yet. Add an assessment or record what you tried, what happened, and what you learned.</p>{% endif %}
 <div class="draft-actions"><a class="button" href="{{ url_for('project_progress', draft_id=draft.id) }}">Add progress or lessons</a><a href="{{ url_for('assess_approach', draft_id=draft.id) }}">Assess an approach</a></div>
 {% if publication %}<section class="next"><h2>Current sharing state</h2><p>{% if publication.hidden %}Story held for moderation.{% elif publication.published %}A public story is available. <a href="{{ url_for('community_story', publication_id=publication.id) }}">View public story</a>{% else %}Story unpublished; your private records are retained.{% endif %}</p><p class="note">This shows the current state, not a history of publication or status changes. Project edits and this private timeline do not automatically update your public story.</p></section>{% endif %}

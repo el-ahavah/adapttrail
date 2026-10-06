@@ -61,6 +61,25 @@
     if (approachSelect) approachSelect.addEventListener('change', updateQuestions);
     updateQuestions();
   }
+  const timeline = document.querySelector('[data-timeline]');
+  if (timeline) {
+    const controls = document.querySelector('[data-timeline-filters]');
+    const events = [...timeline.querySelectorAll('[data-event-kind]')];
+    controls.hidden = false;
+    controls.querySelectorAll('[data-timeline-filter]').forEach(button => {
+      button.addEventListener('click', () => {
+        const filter = button.dataset.timelineFilter;
+        let count = 0;
+        events.forEach(event => {
+          event.hidden = filter !== 'all' && event.dataset.eventKind !== filter;
+          if (!event.hidden) count++;
+        });
+        controls.querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+        document.querySelector('[data-timeline-empty]').hidden = count > 0;
+        document.querySelector('[data-timeline-status]').textContent = `${count} saved record${count === 1 ? '' : 's'} shown, earliest to latest.`;
+      });
+    });
+  }
   const search = document.querySelector('[data-project-search]');
   if (search) {
     document.querySelector('[data-search-panel]').hidden = false;
