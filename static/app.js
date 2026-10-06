@@ -1,6 +1,25 @@
 /* Progressive enhancements. Account and project forms remain server controlled. */
 (() => {
   document.body.classList.add('js-ready');
+  const themeButton = document.querySelector('[data-theme-toggle]');
+  if (themeButton) {
+    const updateThemeButton = () => {
+      const dark = document.documentElement.dataset.theme === 'dark';
+      const label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+      themeButton.setAttribute('aria-label', label);
+      themeButton.title = label;
+      themeButton.setAttribute('aria-pressed', String(dark));
+      themeButton.querySelector('span').textContent = dark ? '☀' : '☾';
+    };
+    themeButton.hidden = false;
+    updateThemeButton();
+    themeButton.addEventListener('click', () => {
+      const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = theme;
+      try { localStorage.setItem('adapttrail-theme', theme); } catch (_) { /* Toggle still works without storage. */ }
+      updateThemeButton();
+    });
+  }
   const header = document.querySelector('.site-header');
   const toggle = document.querySelector('[data-nav-toggle]');
   if (header && toggle) {
