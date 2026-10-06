@@ -43,6 +43,24 @@
       }
     });
   }
+  const assessmentForm = document.querySelector('[data-assessment-form]');
+  if (assessmentForm) {
+    const approachSelect = assessmentForm.querySelector('select[name="approach"]');
+    const updateQuestions = () => {
+      const approach = approachSelect ? approachSelect.value : assessmentForm.dataset.approach;
+      const known = ['rainwater', 'garden-mulch', 'water-log'].includes(approach);
+      let shown = 0;
+      assessmentForm.querySelectorAll('[data-relevant-to]').forEach(field => {
+        field.hidden = !known || !(field.dataset.relevantTo === 'all' || field.dataset.relevantTo === approach);
+        if (!field.hidden) shown++;
+      });
+      assessmentForm.querySelector('[data-question-status]').textContent = known
+        ? `${shown} relevant planning questions shown. Hidden answers are retained when switching approaches. Optional setting and weather notes are separate.`
+        : 'Choose a supported approach to see its planning questions. Optional setting and weather notes remain available.';
+    };
+    if (approachSelect) approachSelect.addEventListener('change', updateQuestions);
+    updateQuestions();
+  }
   const search = document.querySelector('[data-project-search]');
   if (search) {
     document.querySelector('[data-search-panel]').hidden = false;

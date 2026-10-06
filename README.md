@@ -338,3 +338,5 @@ The signed-in workspace at `/drafts` shows project and activity counts, private 
 Assessment results display preliminary guidance, information gaps, self-reported factor cards, saved weather context and project actions. Reassessment creates a separate snapshot with fresh form answers; it does not replace the saved result.
 
 The project workspace groups the local plan, latest saved assessment, latest progress entry and publication visibility into clear sections. Project status remains self-reported.
+
+The assessment form groups setting, local conditions, resources and optional weather. JavaScript shows approach-relevant planning questions while retaining hidden answers. Without JavaScript, all fields remain available and saving works normally.
