@@ -336,3 +336,5 @@ Without JavaScript, navigation, server-side action filtering and all project wor
 The signed-in workspace at `/drafts` shows project and activity counts, private project cards with suggested next actions, and the five latest saved assessments and progress entries. New accounts receive a welcoming starting point. Counts describe saved activity, not verified outcomes.
 
 Assessment results display preliminary guidance, information gaps, self-reported factor cards, saved weather context and project actions. Reassessment creates a separate snapshot with fresh form answers; it does not replace the saved result.
+
+The project workspace groups the local plan, latest saved assessment, latest progress entry and publication visibility into clear sections. Project status remains self-reported.

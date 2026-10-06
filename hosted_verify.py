@@ -66,6 +66,10 @@ def verify():
         assert b'Record an observation' in result_page.data
         assert bob.get(saved_assessment.headers['Location'], base_url='https://localhost').status_code == 404
         assert bob.get(path + '/assess', base_url='https://localhost').status_code == 404
+        workspace = alice.get(path, base_url='https://localhost')
+        assert b'Your plan' in workspace.data
+        assert b'Read latest result' in workspace.data
+        assert b'Verification observation' in workspace.data
         dashboard = alice.get('/drafts', base_url='https://localhost')
         assert dashboard.status_code == 200
         assert b'Your next step starts here.' in dashboard.data

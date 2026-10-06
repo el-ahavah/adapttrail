@@ -130,7 +130,16 @@ def new_draft():
 def draft_detail(draft_id):
     draft = get_draft(draft_id)
     source = next((p for p in PROJECTS if p['id'] == draft['source_id']), None)
-    return render_template('draft_detail.html', draft=draft, source=source, adaptation=get_adaptation(draft_id))
+    connection = database()
+    try:
+        latest_assessment = connection.execute('SELECT * FROM assessments WHERE project_id=? AND user_id=? ORDER BY id DESC LIMIT 1', (draft_id, g.user['id'])).fetchone()
+        latest_progress = connection.execute('SELECT * FROM progress_entries WHERE project_id=? ORDER BY created_at DESC,id DESC LIMIT 1', (draft_id,)).fetchone()
+        publication = connection.execute('SELECT * FROM publications WHERE project_id=?', (draft_id,)).fetchone()
+    finally:
+        connection.close()
+    return render_template('draft_detail.html', draft=draft, source=source, adaptation=get_adaptation(draft_id),
+                           latest_assessment=latest_assessment, latest_progress=latest_progress, publication=publication,
+                           guidance=json.loads(latest_assessment['result'])['status'] if latest_assessment else None)
 
 
 DRAFT_FIELDS = ['title', 'country', 'problem', 'approach', 'conditions', 'source_id']
