@@ -60,6 +60,25 @@ class DraftTests(unittest.TestCase):
         self.client.post('/drafts/1/delete', data=dict(csrf_token=self.token, confirm='delete'))
         self.assertEqual(self.client.get('/drafts/1/history').status_code, 404)
 
+    def test_progress_comparison_uses_saved_measurements_and_escapes_labels(self):
+        self.client.post('/drafts/new', data=self.data)
+        record = dict(csrf_token=self.token, entry_date='2025-01-01',
+                      observation='Starting measurement', measurement='0',
+                      unit='litres', metric='<script>water</script>',
+                      period='One week', entry_type='baseline')
+        self.assertEqual(self.client.post('/drafts/1/progress', data=record).status_code, 302)
+        self.assertEqual(self.client.post('/drafts/1/progress', data=record | dict(
+            entry_date='2025-02-01', measurement='25', entry_type='follow-up')).status_code, 302)
+        page = self.client.get('/drafts/1/progress').get_data(as_text=True)
+        self.assertIn('data-compare-baseline', page)
+        self.assertIn('data-compare-followup', page)
+        self.assertIn('data-amount="0"', page)
+        self.assertIn('data-amount="25"', page)
+        self.assertIn('data-metric="&lt;script&gt;water&lt;/script&gt;"', page)
+        self.assertNotIn('<script>water</script>', page)
+        self.assertIn('progress-comparison.js', page)
+        self.assertEqual(app.test_client().get('/drafts/1/progress').status_code, 302)
+
     def test_save_reopen_and_escape(self):
         response = self.client.post('/drafts/new', data=self.data)
         self.assertEqual(response.status_code, 302)

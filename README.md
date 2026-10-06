@@ -263,7 +263,7 @@ For exports, use Supabase's database backup/export tooling; keep exported accoun
 
 ## Progress tracking (implemented)
 
-Open a private project, save its status as Planned, Ongoing, or Completed, then choose **Track progress**. Add dated observations, a baseline, or follow-up measurements. Measurements require a metric, unit, and period; missing measurements are not zero. History is chronological and private to the owner. Deleting a project also deletes its progress entries after the existing confirmation. Progress entries cannot yet be edited individually, and there are no automatic comparisons or charts.
+Open a private project, save its status as Planned, Ongoing, or Completed, then choose **Track progress**. Add dated observations, a baseline, or follow-up measurements. Measurements require a metric, unit, and period; missing measurements are not zero. History is chronological and private to the owner. Deleting a project also deletes its progress entries after the existing confirmation. Progress entries cannot yet be edited individually, and baseline-to-follow-up comparison is available on the progress page; charts are not yet available.
 
 Local SQLite upgrades automatically. Hosted PostgreSQL requires applying `sql/progress-tracking.sql` before deploying this release. This migration preserves existing drafts and adds the private progress table with backend-only permissions.
 
@@ -342,3 +342,9 @@ The project workspace groups the local plan, latest saved assessment, latest pro
 The assessment form groups setting, local conditions, resources and optional weather. JavaScript shows approach-relevant planning questions while retaining hidden answers. Without JavaScript, all fields remain available and saving works normally.
 
 Adaptation history uses a responsive timeline with dated project, assessment and observation cards. Optional JavaScript filters show assessments or observations; without JavaScript every record remains visible. Dates retain their existing meaning, and the timeline is not an audit log or evidence of verified impact.
+
+### Baseline and follow-up comparison
+
+The private progress page offers an optional JavaScript comparison of saved baseline and follow-up entries. It requires matching metric and unit labels (ignoring case and surrounding spaces), a follow-up date on or after the baseline, and the user’s confirmation that methods, scope and period durations are comparable. No unit conversions or interpretation of free-text periods are attempted. Missing values remain missing; zero baselines are supported without calculating a percentage. Results show the absolute difference, do not imply causation or verified improvement, and are not stored or published. Changing either selection clears the comparability confirmation. The history and entry form work without JavaScript.
+
+Run comparison checks with `node --test tests/test_progress_comparison.cjs`.
