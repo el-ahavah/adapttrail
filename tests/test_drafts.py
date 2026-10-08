@@ -79,6 +79,78 @@ class DraftTests(unittest.TestCase):
         self.assertIn('progress-comparison.js', page)
         self.assertEqual(app.test_client().get('/drafts/1/progress').status_code, 302)
 
+    def test_checklist_lifecycle_and_project_summary(self):
+        self.client.post('/drafts/new', data=self.data)
+        path = '/drafts/1/tasks'
+        self.assertIn(b'0 of 0 completed', self.client.get(path).data)
+        self.assertEqual(self.client.post(path, data=dict(csrf_token=self.token, title='Check drainage')).status_code, 302)
+        self.assertIn(b'Check drainage', self.client.get(path).data)
+        update = path + '/1'
+        for intent in ['complete', 'complete']:
+            self.assertEqual(self.client.post(update, data=dict(csrf_token=self.token, intent=intent)).status_code, 302)
+        self.assertIn(b'1 of 1 completed', self.client.get(path).data)
+        workspace = self.client.get('/drafts/1').data
+        self.assertIn(b'<strong>1 of 1</strong>', workspace)
+        self.assertIn(b'Planned', workspace)
+        self.client.post(update, data=dict(csrf_token=self.token, intent='reopen'))
+        self.assertIn(b'0 of 1 completed', self.client.get(path).data)
+        self.client.post(update, data=dict(csrf_token=self.token, intent='edit', title='Record baseline'))
+        self.assertIn(b'Record baseline', self.client.get(path).data)
+        self.client.post(update, data=dict(csrf_token=self.token, intent='archive'))
+        self.assertIn(b'0 of 0 completed', self.client.get(path).data)
+        self.assertIn(b'Archived tasks (1)', self.client.get(path).data)
+        self.client.post(update, data=dict(csrf_token=self.token, intent='restore'))
+        self.assertIn(b'0 of 1 completed', self.client.get(path).data)
+        self.client.post('/drafts/1/delete', data=dict(csrf_token=self.token, confirm='delete'))
+        connection = database()
+        try:
+            self.assertEqual(connection.execute('SELECT COUNT(*) FROM project_tasks').fetchone()[0], 0)
+        finally:
+            connection.close()
+
+    def test_checklist_validation_csrf_and_escaping(self):
+        self.client.post('/drafts/new', data=self.data)
+        path = '/drafts/1/tasks'
+        for title in ['', '   ', 'x' * 241]:
+            self.assertEqual(self.client.post(path, data=dict(csrf_token=self.token, title=title)).status_code, 400)
+        self.assertEqual(self.client.post(path, data=dict(title='No token')).status_code, 400)
+        self.client.post(path, data=dict(csrf_token=self.token, title='<script>private-task</script>'))
+        page = self.client.get(path).data
+        self.assertIn(b'&lt;script&gt;private-task&lt;/script&gt;', page)
+        self.assertNotIn(b'<script>private-task</script>', page)
+        update = path + '/1'
+        for values in [dict(intent='complete'), dict(csrf_token=self.token, intent='delete'),
+                       dict(csrf_token=self.token, intent='edit', title=' ')]:
+            self.assertEqual(self.client.post(update, data=values).status_code, 400)
+        self.assertIn(b'0 of 1 completed', self.client.get(path).data)
+        self.assertIn(b'private-task', self.client.get(path).data)
+
+    def test_checklist_owner_and_project_isolation(self):
+        self.client.post('/drafts/new', data=self.data)
+        self.client.post('/drafts/new', data=self.data | dict(title='Other project'))
+        self.client.post('/drafts/1/tasks', data=dict(csrf_token=self.token, title='Private action'))
+        self.assertEqual(self.client.post('/drafts/2/tasks/1', data=dict(csrf_token=self.token, intent='complete')).status_code, 404)
+        stranger = app.test_client()
+        self.assertEqual(stranger.get('/drafts/1/tasks').status_code, 302)
+        self.assertEqual(stranger.post('/drafts/1/tasks/1', data=dict(intent='complete')).status_code, 302)
+        stranger.get('/register')
+        with stranger.session_transaction() as saved:
+            token = saved['csrf_token']
+        stranger.post('/register', data=dict(csrf_token=token, username='task_bob', password='long-password-123', confirmation='long-password-123'))
+        stranger.post('/login', data=dict(csrf_token=token, username='task_bob', password='long-password-123'))
+        stranger.get('/drafts')
+        with stranger.session_transaction() as saved:
+            token = saved['csrf_token']
+        self.assertEqual(stranger.get('/drafts/1/tasks').status_code, 404)
+        self.assertEqual(stranger.post('/drafts/1/tasks', data=dict(csrf_token=token, title='Intrusion')).status_code, 404)
+        for intent in ['complete', 'reopen', 'edit', 'archive', 'restore']:
+            self.assertEqual(stranger.post('/drafts/1/tasks/1', data=dict(csrf_token=token, intent=intent, title='Intrusion')).status_code, 404)
+        public = dict(csrf_token=self.token, title='Public learning', country='Nigeria', problem='Local challenge', action='Test action', outcome='', lessons='Test lessons', intent='publish', consent='yes')
+        published = self.client.post('/drafts/1/publish', data=public)
+        self.assertEqual(published.status_code, 302)
+        self.assertNotIn(b'Private action', stranger.get(published.location).data)
+        self.assertNotIn(b'Private action', stranger.get('/discover').data)
+
     def test_save_reopen_and_escape(self):
         response = self.client.post('/drafts/new', data=self.data)
         self.assertEqual(response.status_code, 302)

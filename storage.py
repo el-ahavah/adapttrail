@@ -50,6 +50,14 @@ def connect(config):
         unit TEXT NOT NULL, metric TEXT NOT NULL, period TEXT NOT NULL,
         entry_type TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )""")
+    connection.execute("""CREATE TABLE IF NOT EXISTS project_tasks (
+        id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES drafts(id) ON DELETE CASCADE,
+        title TEXT NOT NULL CHECK(length(trim(title)) BETWEEN 1 AND 240),
+        completed INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0,1)),
+        archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1)),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )""")
+    connection.execute('CREATE INDEX IF NOT EXISTS tasks_project ON project_tasks(project_id,archived,id)')
     connection.execute("""CREATE TABLE IF NOT EXISTS assessments (
         id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
         project_id INTEGER REFERENCES drafts(id) ON DELETE CASCADE,

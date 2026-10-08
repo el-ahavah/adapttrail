@@ -135,10 +135,11 @@ def draft_detail(draft_id):
         latest_assessment = connection.execute('SELECT * FROM assessments WHERE project_id=? AND user_id=? ORDER BY id DESC LIMIT 1', (draft_id, g.user['id'])).fetchone()
         latest_progress = connection.execute('SELECT * FROM progress_entries WHERE project_id=? ORDER BY created_at DESC,id DESC LIMIT 1', (draft_id,)).fetchone()
         publication = connection.execute('SELECT * FROM publications WHERE project_id=?', (draft_id,)).fetchone()
+        task_counts = connection.execute('SELECT COUNT(*) AS total, COALESCE(SUM(completed),0) AS completed FROM project_tasks WHERE project_id=? AND archived=0', (draft_id,)).fetchone()
     finally:
         connection.close()
     return render_template('draft_detail.html', draft=draft, source=source, adaptation=get_adaptation(draft_id),
-                           latest_assessment=latest_assessment, latest_progress=latest_progress, publication=publication,
+                           latest_assessment=latest_assessment, latest_progress=latest_progress, publication=publication, task_counts=task_counts,
                            guidance=json.loads(latest_assessment['result'])['status'] if latest_assessment else None)
 
 
@@ -363,6 +364,57 @@ def project_status(draft_id):
     finally:
         connection.close()
     return redirect(url_for('draft_detail', draft_id=draft_id))
+
+
+@app.route('/drafts/<int:draft_id>/tasks', methods=['GET', 'POST'])
+def project_tasks(draft_id):
+    draft = get_draft(draft_id)
+    title, error = '', None
+    connection = database()
+    try:
+        if request.method == 'POST':
+            check_csrf()
+            title = request.form.get('title', '').strip()
+            if not 1 <= len(title) <= 240:
+                error = 'Write a task of 1–240 characters.'
+            else:
+                with connection:
+                    connection.execute('INSERT INTO project_tasks (project_id,title) VALUES (?,?)', (draft_id, title))
+                return redirect(url_for('project_tasks', draft_id=draft_id))
+        tasks = connection.execute('SELECT * FROM project_tasks WHERE project_id=? ORDER BY id', (draft_id,)).fetchall()
+    finally:
+        connection.close()
+    active = [task for task in tasks if not task['archived']]
+    return render_template('project_tasks.html', draft=draft, tasks=active,
+                           archived=[task for task in tasks if task['archived']],
+                           completed=sum(task['completed'] for task in active), title=title, error=error), (400 if error else 200)
+
+
+@app.post('/drafts/<int:draft_id>/tasks/<int:task_id>')
+def update_project_task(draft_id, task_id):
+    get_draft(draft_id)
+    check_csrf()
+    intent = request.form.get('intent', '')
+    if intent not in {'complete', 'reopen', 'archive', 'restore', 'edit'}:
+        abort(400)
+    connection = database()
+    try:
+        task = connection.execute('SELECT * FROM project_tasks WHERE id=? AND project_id=?', (task_id, draft_id)).fetchone()
+        if task is None:
+            abort(404)
+        with connection:
+            if intent == 'edit':
+                title = request.form.get('title', '').strip()
+                if not 1 <= len(title) <= 240:
+                    return render_template('task_edit_error.html', draft_id=draft_id, task=task, title=title), 400
+                connection.execute('UPDATE project_tasks SET title=? WHERE id=? AND project_id=?', (title, task_id, draft_id))
+            elif intent in {'complete', 'reopen'}:
+                connection.execute('UPDATE project_tasks SET completed=? WHERE id=? AND project_id=?', (int(intent == 'complete'), task_id, draft_id))
+            else:
+                connection.execute('UPDATE project_tasks SET archived=? WHERE id=? AND project_id=?', (int(intent == 'archive'), task_id, draft_id))
+    finally:
+        connection.close()
+    return redirect(url_for('project_tasks', draft_id=draft_id))
 
 
 @app.route('/drafts/<int:draft_id>/progress', methods=['GET', 'POST'])
@@ -745,7 +797,7 @@ def adapt_documented(project_id):
 
 def safe_return_path(path):
     return isinstance(path,str) and re.fullmatch(
-        r'/drafts(?:/new|/from-community/[0-9]+|/from-documented/[a-z0-9-]+|/[0-9]+(?:/(?:edit|delete|history|progress|assess|adaptation|publish))?)?|/assess/(?:rainwater|garden-mulch|water-log)', path) is not None
+        r'/drafts(?:/new|/from-community/[0-9]+|/from-documented/[a-z0-9-]+|/[0-9]+(?:/(?:edit|delete|history|progress|tasks|assess|adaptation|publish))?)?|/assess/(?:rainwater|garden-mulch|water-log)', path) is not None
 
 
 @app.get('/how-to-use')

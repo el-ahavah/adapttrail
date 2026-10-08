@@ -54,6 +54,25 @@ def verify():
         assert bob.get(path + '/progress', base_url='https://localhost').status_code == 404
         assert post(bob, path + '/progress', progress | dict(csrf_token=csrf_bob)).status_code == 404
         assert post(alice, path + '/status', dict(csrf_token=progress['csrf_token'],status='ongoing')).status_code == 302
+        task_path = path + '/tasks'
+        task_data = dict(csrf_token=token(alice, task_path), title='Private verification checklist task')
+        assert post(alice, task_path, task_data).status_code == 302
+        connection = database()
+        try:
+            task = connection.execute('SELECT id FROM project_tasks WHERE project_id=?', (int(path.rsplit('/',1)[1]),)).fetchone()
+        finally:
+            connection.close()
+        task_update = task_path + '/' + str(task['id'])
+        assert bob.get(task_path, base_url='https://localhost').status_code == 404
+        assert post(bob, task_update, dict(csrf_token=csrf_bob,intent='complete')).status_code == 404
+        assert post(alice, task_update, dict(csrf_token='bad',intent='complete')).status_code == 400
+        for intent, expected in [('complete', b'1 of 1 completed'), ('archive', b'0 of 0 completed'), ('restore', b'1 of 1 completed'), ('reopen', b'0 of 1 completed')]:
+            assert post(alice, task_update, dict(csrf_token=task_data['csrf_token'],intent=intent)).status_code == 302
+            assert expected in alice.get(task_path,base_url='https://localhost').data
+        assert post(alice, task_update, dict(csrf_token=task_data['csrf_token'],intent='edit',title='Updated private checklist task')).status_code == 302
+        assert b'Updated private checklist task' in alice.get(task_path,base_url='https://localhost').data
+        assert b'Open checklist' in alice.get(path,base_url='https://localhost').data
+        print('AdaptTrail hosted checklist verification passed: persistence, editing, completion, archive/restore, CSRF and owner isolation.', flush=True)
         from assessment import FIELDS
         answers = {key: 'unknown' for key in FIELDS}
         answers.update(csrf_token=token(alice, path + '/assess'), approach='rainwater', country='Test country',region='',crop='',resources='')
@@ -116,6 +135,7 @@ def verify():
         assert published.status_code == 302
         visitor = app.test_client()
         assert visitor.get(published.headers['Location'],base_url='https://localhost').status_code == 200
+        assert b'Updated private checklist task' not in visitor.get(published.headers['Location'],base_url='https://localhost').data
         source_id = published.headers['Location'].rsplit('/',1)[1]
         adapt_path = '/drafts/from-community/' + source_id
         adapted = post(bob,adapt_path,dict(csrf_token=token(bob,adapt_path),title='Temporary adaptation',

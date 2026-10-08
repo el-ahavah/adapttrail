@@ -348,3 +348,9 @@ Adaptation history uses a responsive timeline with dated project, assessment and
 The private progress page offers an optional JavaScript comparison of saved baseline and follow-up entries. It requires matching metric and unit labels (ignoring case and surrounding spaces), a follow-up date on or after the baseline, and the user’s confirmation that methods, scope and period durations are comparable. No unit conversions or interpretation of free-text periods are attempted. Missing values remain missing; zero baselines are supported without calculating a percentage. Results show the absolute difference, do not imply causation or verified improvement, and are not stored or published. Changing either selection clears the comparability confirmation. The history and entry form work without JavaScript.
 
 Run comparison checks with `node --test tests/test_progress_comparison.cjs`.
+
+### Private action checklists
+
+Open a project and choose **Open checklist**, or use **Plan next actions** from a project assessment. Add tasks of 1–240 characters, edit them, mark them complete, or reopen them. Archive tasks you no longer need and restore them from the archived section. Counts exclude archived tasks; a completed checklist does not mark the project completed or imply measured impact. Tasks are never included in public story snapshots or copied into another user's adaptation. All mutations require CSRF and project ownership, and individual tasks must belong to the project in the URL. Forms work without JavaScript. Deleting the project also removes its tasks after the existing confirmation.
+
+For a hosted installation apply `sql/project-tasks.sql` before deploying this feature. It uses the existing private schema and backend-only database role; Flask enforces account ownership. Local SQLite creates the table automatically.

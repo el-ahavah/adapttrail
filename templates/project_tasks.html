@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Action checklist · {{ draft.title }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('draft_detail', draft_id=draft.id) }}">← Project workspace</a>
+<p class="eyebrow">Private project · {{ draft.title }}</p>
+<h1>One practical step at a time.</h1>
+<p class="intro">Turn your plan and assessment checks into tasks you can work through.</p>
+<section class="task-summary" aria-label="Checklist progress">
+<div><span class="eyebrow">Your action checklist</span><h2>{{ completed }} of {{ tasks|length }} completed</h2><p>{{ tasks|length - completed }} remaining · {{ archived|length }} archived</p></div>
+{% if tasks %}<progress max="{{ tasks|length }}" value="{{ completed }}" aria-label="Completed tasks">{{ completed }} of {{ tasks|length }}</progress>{% endif %}
+<p class="note">Completing a task records your activity. Use <a href="{{ url_for('project_progress', draft_id=draft.id) }}">Track progress</a> for observations and measurements.</p>
+</section>
+<div class="task-layout">
+<section class="task-add"><h2>Add your next action</h2><p class="note">For example: “Ask a local adviser about soil drainage” or “Record a starting measurement.”</p>
+{% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}
+<form method="post" class="draft-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="task-title">What needs to be done?</label><textarea id="task-title" name="title" rows="3" maxlength="240" required>{{ title }}</textarea><button class="button" type="submit">Add task</button></form>
+<p class="note">Only you can see this checklist. Tasks are not included in your public story.</p>
+</section>
+<section aria-labelledby="tasks-heading"><h2 id="tasks-heading">Your tasks</h2>
+<ul class="task-list">{% for task in tasks %}<li class="task-card {% if task.completed %}task-complete{% endif %}">
+<div class="task-card-heading"><span class="badge">{{ 'Completed' if task.completed else 'To do' }}</span><span class="note">Task {{ loop.index }}</span></div>
+<h3 class="preserve">{{ task.title }}</h3>
+<form method="post" action="{{ url_for('update_project_task', draft_id=draft.id, task_id=task.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button {{ 'secondary' if task.completed else '' }}" name="intent" value="{{ 'reopen' if task.completed else 'complete' }}" type="submit" aria-label="{{ 'Reopen' if task.completed else 'Mark complete:' }} {{ task.title }}">{{ 'Reopen task' if task.completed else 'Mark complete' }}</button></form>
+<details class="task-edit"><summary>Edit or archive task</summary><form method="post" action="{{ url_for('update_project_task', draft_id=draft.id, task_id=task.id) }}" class="task-edit-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="task-edit-{{ task.id }}">Task description</label><textarea id="task-edit-{{ task.id }}" name="title" rows="3" maxlength="240" required>{{ task.title }}</textarea><button class="button secondary" type="submit" name="intent" value="edit">Save changes</button></form><form method="post" action="{{ url_for('update_project_task', draft_id=draft.id, task_id=task.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button secondary" type="submit" name="intent" value="archive">Archive task</button><p class="note">You can restore it below.</p></form></details>
+</li>{% else %}<li class="task-empty"><h3>Your next action starts here.</h3><p>Add one manageable task from your plan or assessment. Archived tasks can also be restored below.</p></li>{% endfor %}</ul>
+{% if tasks and completed == tasks|length %}<aside class="notice">All active tasks are complete. Record what happened in your progress log, or add your next action.</aside>{% endif %}
+</section></div>
+{% if archived %}<details class="task-archive"><summary>Archived tasks ({{ archived|length }})</summary><ul class="task-list">{% for task in archived %}<li class="task-card"><span class="badge">{{ 'Completed' if task.completed else 'To do' }} · Archived</span><h3 class="preserve">{{ task.title }}</h3><form method="post" action="{{ url_for('update_project_task', draft_id=draft.id, task_id=task.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button secondary" name="intent" value="restore" type="submit" aria-label="Restore {{ task.title }}">Restore task</button></form></li>{% endfor %}</ul></details>{% endif %}
+{% endblock %}
