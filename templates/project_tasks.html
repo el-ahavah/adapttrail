@@ -9,7 +9,7 @@
 <p class="eyebrow">Private project · {{ draft.title }}</p>
 <div class="checklist-hero"><div><span class="checklist-kicker">PLAN · ACT · LEARN</span><h1>Small actions.<br><em>Lasting learning.</em></h1>
 <p class="intro">Give your next step a place to begin. Build your checklist, follow through, and record what you learn.</p></div><a class="button" href="#task-title">＋ Add an action</a></div>
-<section class="task-summary" aria-label="Checklist progress">
+<section class="task-summary" aria-label="Checklist progress"><div class="task-progress-ring" data-progress-ring data-completed="{{ completed }}" data-total="{{ tasks|length }}" aria-hidden="true" hidden><span data-progress-percent></span><small>complete</small></div>
 <div><span class="eyebrow">Your momentum</span><h2>{{ completed }} of {{ tasks|length }} completed</h2><p>{{ tasks|length - completed }} remaining · {{ archived|length }} archived</p></div>
 {% if tasks %}<progress max="{{ tasks|length }}" value="{{ completed }}" aria-label="Completed tasks">{{ completed }} of {{ tasks|length }}</progress>{% endif %}
 <p class="note">Completing a task records your activity. Use <a href="{{ url_for('project_progress', draft_id=draft.id) }}">Track progress</a> for observations and measurements.</p>

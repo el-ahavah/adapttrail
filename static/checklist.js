@@ -54,5 +54,24 @@
   });
   page.querySelector('[data-task-shortcut]').hidden = false;
   updateStarters();
+  const ring = page.querySelector('[data-progress-ring]');
+  const total = Number(ring.dataset.total);
+  const percent = total ? Math.round(Number(ring.dataset.completed) / total * 100) : 0;
+  if (total) {
+    ring.hidden = false;
+    ring.querySelector('[data-progress-percent]').textContent = `${percent}%`;
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (motion.matches) ring.style.setProperty('--completion', `${percent}%`);
+    else {
+      const start = performance.now();
+      const animate = now => {
+        const fraction = Math.min((now - start) / 650, 1);
+        ring.style.setProperty('--completion', `${percent * (1 - (1 - fraction) ** 3)}%`);
+        if (fraction < 1 && ring.isConnected && !motion.matches) requestAnimationFrame(animate);
+        else ring.style.setProperty('--completion', `${percent}%`);
+      };
+      requestAnimationFrame(animate);
+    }
+  }
   updateView();
 })();
