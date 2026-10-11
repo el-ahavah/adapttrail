@@ -73,5 +73,22 @@
       requestAnimationFrame(animate);
     }
   }
+  page.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', event => {
+      if (form.dataset.submitting === 'true') { event.preventDefault(); return; }
+      const field = form.querySelector('textarea');
+      if (field && !field.value.trim()) { event.preventDefault(); field.setCustomValidity('Write a task before saving.'); field.reportValidity(); return; }
+      form.dataset.submitting = 'true';
+      form.setAttribute('aria-busy', 'true');
+      const button = event.submitter;
+      if (button) { button.dataset.originalText = button.textContent; button.textContent = 'Saving…'; button.setAttribute('aria-disabled', 'true'); }
+      // Keep the submitter enabled so its intent is included in the request.
+    });
+    form.querySelectorAll('textarea').forEach(field => field.addEventListener('input', () => field.setCustomValidity('')));
+  });
+  window.addEventListener('pageshow', () => {
+    page.querySelectorAll('form').forEach(form => { delete form.dataset.submitting; form.removeAttribute('aria-busy'); });
+    page.querySelectorAll('[data-original-text]').forEach(button => { button.textContent = button.dataset.originalText; button.removeAttribute('aria-disabled'); delete button.dataset.originalText; });
+  });
   updateView();
 })();
