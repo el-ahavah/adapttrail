@@ -1,22 +1,25 @@
 {% extends 'base.html' %}
-{% block title %}Action checklist · {{ draft.title }}{% endblock %}
+{% block title %}Action checklist · {{ draft.title }}</div>
+{% endblock %}
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='checklist.css') }}">
+<div class="checklist-page" data-checklist>
 <a class="back" href="{{ url_for('draft_detail', draft_id=draft.id) }}">← Project workspace</a>
 <p class="eyebrow">Private project · {{ draft.title }}</p>
-<h1>One practical step at a time.</h1>
-<p class="intro">Turn your plan and assessment checks into tasks you can work through.</p>
+<div class="checklist-hero"><div><span class="checklist-kicker">PLAN · ACT · LEARN</span><h1>Small actions.<br><em>Lasting learning.</em></h1>
+<p class="intro">Give your next step a place to begin. Build your checklist, follow through, and record what you learn.</p></div><a class="button" href="#task-title">＋ Add an action</a></div>
 <section class="task-summary" aria-label="Checklist progress">
-<div><span class="eyebrow">Your action checklist</span><h2>{{ completed }} of {{ tasks|length }} completed</h2><p>{{ tasks|length - completed }} remaining · {{ archived|length }} archived</p></div>
+<div><span class="eyebrow">Your momentum</span><h2>{{ completed }} of {{ tasks|length }} completed</h2><p>{{ tasks|length - completed }} remaining · {{ archived|length }} archived</p></div>
 {% if tasks %}<progress max="{{ tasks|length }}" value="{{ completed }}" aria-label="Completed tasks">{{ completed }} of {{ tasks|length }}</progress>{% endif %}
 <p class="note">Completing a task records your activity. Use <a href="{{ url_for('project_progress', draft_id=draft.id) }}">Track progress</a> for observations and measurements.</p>
 </section>
 <div class="task-layout">
-<section class="task-add"><h2>Add your next action</h2><p class="note">For example: “Ask a local adviser about soil drainage” or “Record a starting measurement.”</p>
+<section class="task-add"><span class="checklist-kicker">01 / MAKE A PLAN</span><h2>What comes next?</h2><p class="note">For example: “Ask a local adviser about soil drainage” or “Record a starting measurement.”</p>
 {% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}
 <form method="post" class="draft-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="task-title">What needs to be done?</label><textarea id="task-title" name="title" rows="3" maxlength="240" required>{{ title }}</textarea><button class="button" type="submit">Add task</button></form>
 <p class="note">Only you can see this checklist. Tasks are not included in your public story.</p>
 </section>
-<section aria-labelledby="tasks-heading"><h2 id="tasks-heading">Your tasks</h2>
+<section aria-labelledby="tasks-heading"><div class="task-section-title"><div><span class="checklist-kicker">02 / PUT IT INTO PRACTICE</span><h2 id="tasks-heading">Your tasks</h2></div><span class="badge">{{ tasks|length }} active</span></div>
 <ul class="task-list">{% for task in tasks %}<li class="task-card {% if task.completed %}task-complete{% endif %}">
 <div class="task-card-heading"><span class="badge">{{ 'Completed' if task.completed else 'To do' }}</span><span class="note">Task {{ loop.index }}</span></div>
 <h3 class="preserve">{{ task.title }}</h3>
@@ -26,4 +29,5 @@
 {% if tasks and completed == tasks|length %}<aside class="notice">All active tasks are complete. Record what happened in your progress log, or add your next action.</aside>{% endif %}
 </section></div>
 {% if archived %}<details class="task-archive"><summary>Archived tasks ({{ archived|length }})</summary><ul class="task-list">{% for task in archived %}<li class="task-card"><span class="badge">{{ 'Completed' if task.completed else 'To do' }} · Archived</span><h3 class="preserve">{{ task.title }}</h3><form method="post" action="{{ url_for('update_project_task', draft_id=draft.id, task_id=task.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button secondary" name="intent" value="restore" type="submit" aria-label="Restore {{ task.title }}">Restore task</button></form></li>{% endfor %}</ul></details>{% endif %}
+</div>
 {% endblock %}
