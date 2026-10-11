@@ -1,12 +1,12 @@
 import unittest
 from unittest.mock import patch
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 from weather import forecast, planning_notes, search_locations, WeatherUnavailable
 from test_drafts import DraftTests
 
 
 def payload():
-    start = date.today() - timedelta(days=1)
+    start = datetime.now(timezone.utc).date() - timedelta(days=1)
     return dict(timezone='UTC', daily_units=dict(temperature_2m_min='°C', temperature_2m_max='°C', precipitation_sum='mm'),
                 daily=dict(time=[(start+timedelta(days=i)).isoformat() for i in range(4)],
                            temperature_2m_min=[20]*4, temperature_2m_max=[30]*4, precipitation_sum=[0,0,4,0]))
