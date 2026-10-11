@@ -7,6 +7,7 @@
   const tools = page.querySelector('[data-task-tools]');
   const status = page.querySelector('[data-task-results]');
   const search = page.querySelector('[data-task-search]');
+  const sort = page.querySelector('[data-task-sort]');
   let filter = 'all';
   function updateView() {
     const terms = search.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -16,9 +17,17 @@
       card.hidden = (filter !== 'all' && card.dataset.taskState !== filter) || !terms.every(term => title.includes(term));
       if (!card.hidden) shown++;
     });
+    const ordered = [...cards].sort((a, b) => {
+      const byAge = Number(a.dataset.taskId) - Number(b.dataset.taskId);
+      if (sort.value === 'newest') return -byAge;
+      if (sort.value === 'todo') return Number(a.dataset.taskState === 'done') - Number(b.dataset.taskState === 'done') || byAge;
+      return byAge;
+    });
+    ordered.forEach(card => list.appendChild(card));
     status.textContent = `${shown} of ${cards.length} active tasks shown.`;
     page.querySelector('[data-task-no-results]').hidden = shown > 0 || cards.length === 0;
   }
+  sort.addEventListener('change', updateView);
   search.addEventListener('input', updateView);
   page.querySelector('[data-task-clear]').addEventListener('click', () => { search.value = ''; updateView(); search.focus(); });
   tools.hidden = cards.length === 0;
