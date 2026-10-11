@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Action checklist · {{ draft.title }}</div>
+<script src="{{ url_for('static', filename='checklist.js') }}" defer></script>
 {% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='checklist.css') }}">
@@ -20,7 +21,9 @@
 <p class="note">Only you can see this checklist. Tasks are not included in your public story.</p>
 </section>
 <section aria-labelledby="tasks-heading"><div class="task-section-title"><div><span class="checklist-kicker">02 / PUT IT INTO PRACTICE</span><h2 id="tasks-heading">Your tasks</h2></div><span class="badge">{{ tasks|length }} active</span></div>
-<ul class="task-list">{% for task in tasks %}<li class="task-card {% if task.completed %}task-complete{% endif %}">
+<div class="checklist-tools" data-task-tools hidden><div class="task-filter-tabs" role="group" aria-label="Filter active tasks"><button type="button" data-task-filter="all" aria-pressed="true">All <span>{{ tasks|length }}</span></button><button type="button" data-task-filter="todo" aria-pressed="false">To do <span>{{ tasks|length - completed }}</span></button><button type="button" data-task-filter="done" aria-pressed="false">Completed <span>{{ completed }}</span></button></div><p class="note" data-task-results role="status" aria-live="polite"></p></div>
+<p class="task-empty" data-task-no-results hidden>No tasks match this view. Try another filter.</p>
+<ul class="task-list" data-active-tasks>{% for task in tasks %}<li data-task-state="{{ 'done' if task.completed else 'todo' }}" data-task-id="{{ task.id }}" class="task-card {% if task.completed %}task-complete{% endif %}">
 <div class="task-card-heading"><span class="badge">{{ 'Completed' if task.completed else 'To do' }}</span><span class="note">Task {{ loop.index }}</span></div>
 <h3 class="preserve">{{ task.title }}</h3>
 <form method="post" action="{{ url_for('update_project_task', draft_id=draft.id, task_id=task.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button {{ 'secondary' if task.completed else '' }}" name="intent" value="{{ 'reopen' if task.completed else 'complete' }}" type="submit" aria-label="{{ 'Reopen' if task.completed else 'Mark complete:' }} {{ task.title }}">{{ 'Reopen task' if task.completed else 'Mark complete' }}</button></form>
@@ -30,4 +33,5 @@
 </section></div>
 {% if archived %}<details class="task-archive"><summary>Archived tasks ({{ archived|length }})</summary><ul class="task-list">{% for task in archived %}<li class="task-card"><span class="badge">{{ 'Completed' if task.completed else 'To do' }} · Archived</span><h3 class="preserve">{{ task.title }}</h3><form method="post" action="{{ url_for('update_project_task', draft_id=draft.id, task_id=task.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button secondary" name="intent" value="restore" type="submit" aria-label="Restore {{ task.title }}">Restore task</button></form></li>{% endfor %}</ul></details>{% endif %}
 </div>
+<script src="{{ url_for('static', filename='checklist.js') }}" defer></script>
 {% endblock %}
