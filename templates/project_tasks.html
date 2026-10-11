@@ -17,7 +17,7 @@
 <div class="task-layout">
 <section class="task-add"><span class="checklist-kicker">01 / MAKE A PLAN</span><h2>What comes next?</h2><p class="note">For example: “Ask a local adviser about soil drainage” or “Record a starting measurement.”</p>
 {% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}
-<form method="post" class="draft-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="task-title">What needs to be done?</label><textarea id="task-title" name="title" rows="3" maxlength="240" required>{{ title }}</textarea><button class="button" type="submit">Add task</button></form>
+<div class="task-starters" data-task-starters hidden><span class="note">Start with an idea</span><button type="button">Record a baseline measurement</button><button type="button">Check a missing condition</button><button type="button">Speak with a local adviser</button></div><form method="post" class="draft-form" data-task-composer><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="task-title">What needs to be done?</label><textarea id="task-title" name="title" rows="3" maxlength="240" required>{{ title }}</textarea><button class="button" type="submit">＋ Add task</button><small class="note" data-task-shortcut hidden>Ctrl / ⌘ + Enter to add</small></form>
 <p class="note">Only you can see this checklist. Tasks are not included in your public story.</p>
 </section>
 <section aria-labelledby="tasks-heading"><div class="task-section-title"><div><span class="checklist-kicker">02 / PUT IT INTO PRACTICE</span><h2 id="tasks-heading">Your tasks</h2></div><span class="badge">{{ tasks|length }} active</span></div>
