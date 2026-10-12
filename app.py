@@ -582,11 +582,14 @@ def assessment_result(assessment_id):
     connection = database()
     try:
         record = connection.execute('SELECT * FROM assessments WHERE id=? AND user_id=?', (assessment_id,g.user['id'])).fetchone()
+        linked_tasks = {}
+        if record is not None and record['project_id']:
+            linked_tasks = {task['source_check_index']: task for task in connection.execute('SELECT * FROM project_tasks WHERE source_assessment_id=? AND project_id=?', (assessment_id,record['project_id'])).fetchall()}
     finally:
         connection.close()
     if record is None:
         abort(404)
-    return render_template('assessment_result.html', record=record, result=json.loads(record['result']), inputs=json.loads(record['inputs']), fields=FIELDS)
+    return render_template('assessment_result.html', record=record, result=json.loads(record['result']), inputs=json.loads(record['inputs']), fields=FIELDS, linked_tasks=linked_tasks)
 
 
 PUBLIC_FIELDS = ['title','country','problem','action','outcome','lessons']
@@ -834,7 +837,7 @@ def adapt_documented(project_id):
 
 def safe_return_path(path):
     return isinstance(path,str) and re.fullmatch(
-        r'/drafts(?:/new|/from-community/[0-9]+|/from-documented/[a-z0-9-]+|/[0-9]+(?:/(?:edit|delete|history|progress|tasks|assess|adaptation|publish))?)?|/assess/(?:rainwater|garden-mulch|water-log)', path) is not None
+        r'/drafts/[0-9]+/assessments/[0-9]+/tasks/[0-9]+|/drafts(?:/new|/from-community/[0-9]+|/from-documented/[a-z0-9-]+|/[0-9]+(?:/(?:edit|delete|history|progress|tasks|assess|adaptation|publish))?)?|/assess/(?:rainwater|garden-mulch|water-log)', path) is not None
 
 
 @app.get('/how-to-use')
