@@ -358,3 +358,9 @@ For a hosted installation apply `sql/project-tasks.sql` before deploying this fe
 ### Checklist interaction design
 
 The checklist uses a dedicated JavaScript enhancement and theme-aware stylesheet. Users can filter by completion, search active task titles, and sort by age or incomplete tasks first. Search and sorting only change the current view. Task starters fill an empty composer without submitting; Ctrl/Cmd+Enter submits through the normal validated form. A completion ring reflects all active tasks, independent of filters, with reduced-motion support. Submission feedback preserves the submitted action and resets when navigating back. All task mutations still use server-rendered forms, CSRF validation and ownership checks; the core checklist remains usable without JavaScript.
+
+### Turn saved guidance into actions
+
+Project assessments offer **Add to my checklist** beside each saved local check. The link opens a preview; no task is saved until the owner submits it. Edit the description (1–240 characters), review the original check, then save. Tasks link back to the saved assessment, even after editing, completion or archiving. Duplicate protection is scoped to the project, saved assessment and check position; a database unique index handles repeated or concurrent submissions. Existing completed/archived tasks are preserved and linked instead of replaced. A new assessment is a new snapshot and may provide a separate task. Standalone assessments must first be associated with a project through the existing project assessment flow; they cannot be imported into an arbitrary project.
+
+Hosted setup: apply `sql/assessment-checklist.sql` before deploying. Existing tasks are preserved with empty source fields. Sources are assigned server-side after validating both assessment and project ownership. Preview forms work without JavaScript; optional JavaScript adds save feedback. These private tasks are not automatically published.

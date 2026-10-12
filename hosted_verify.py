@@ -84,6 +84,23 @@ def verify():
         assert b'Assess again' in result_page.data
         assert b'Record an observation' in result_page.data
         assert bob.get(saved_assessment.headers['Location'], base_url='https://localhost').status_code == 404
+        assessment_id = saved_assessment.headers['Location'].rsplit('/',1)[1]
+        suggestion_path = path + '/assessments/' + assessment_id + '/tasks/0'
+        assert alice.get(suggestion_path,base_url='https://localhost').status_code == 200
+        assert bob.get(suggestion_path,base_url='https://localhost').status_code == 404
+        suggestion_data = dict(csrf_token=token(alice,suggestion_path),title='Private task from saved guidance')
+        imported = post(alice,suggestion_path,suggestion_data)
+        assert imported.status_code == 302
+        assert b'From saved assessment #' in alice.get(imported.headers['Location'],base_url='https://localhost').data
+        assert post(alice,suggestion_path,suggestion_data).status_code == 302
+        connection = database()
+        try:
+            linked = connection.execute('SELECT COUNT(*) AS total FROM project_tasks WHERE source_assessment_id=?', (int(assessment_id),)).fetchone()
+            assert linked['total'] == 1
+        finally:
+            connection.close()
+        print('AdaptTrail assessment-to-checklist verification passed: edited task, source link, duplicate protection and ownership.',flush=True)
+
         assert bob.get(path + '/assess', base_url='https://localhost').status_code == 404
         workspace = alice.get(path, base_url='https://localhost')
         assert b'Your plan' in workspace.data
