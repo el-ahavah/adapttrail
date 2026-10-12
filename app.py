@@ -390,6 +390,43 @@ def project_tasks(draft_id):
                            completed=sum(task['completed'] for task in active), title=title, error=error), (400 if error else 200)
 
 
+@app.route('/drafts/<int:draft_id>/assessments/<int:assessment_id>/tasks/<int:check_index>', methods=['GET', 'POST'])
+def task_from_assessment(draft_id, assessment_id, check_index):
+    draft = get_draft(draft_id)
+    connection = database()
+    try:
+        record = connection.execute('SELECT * FROM assessments WHERE id=? AND project_id=? AND user_id=?',
+                                    (assessment_id, draft_id, g.user['id'])).fetchone()
+        if record is None:
+            abort(404)
+        checks = json.loads(record['result']).get('checks', [])
+        if check_index >= len(checks) or not isinstance(checks[check_index], str):
+            abort(404)
+        suggestion = checks[check_index]
+        existing = connection.execute('SELECT * FROM project_tasks WHERE project_id=? AND source_assessment_id=? AND source_check_index=?',
+                                      (draft_id, assessment_id, check_index)).fetchone()
+        title, error = suggestion, None
+        if request.method == 'POST':
+            check_csrf()
+            if existing is not None:
+                return redirect(url_for('project_tasks', draft_id=draft_id, archived=existing['archived'], _anchor='task-' + str(existing['id'])))
+            title = request.form.get('title', '').strip()
+            if not 1 <= len(title) <= 240:
+                error = 'Write a task of 1–240 characters. The original assessment check is shown below for reference.'
+            else:
+                with connection:
+                    connection.execute("""INSERT INTO project_tasks (project_id,title,source_assessment_id,source_check_index)
+                        VALUES (?,?,?,?) ON CONFLICT(project_id,source_assessment_id,source_check_index) DO NOTHING""",
+                        (draft_id,title,assessment_id,check_index))
+                saved = connection.execute('SELECT id,archived FROM project_tasks WHERE project_id=? AND source_assessment_id=? AND source_check_index=?',
+                                           (draft_id,assessment_id,check_index)).fetchone()
+                return redirect(url_for('project_tasks', draft_id=draft_id, archived=saved['archived'], _anchor='task-' + str(saved['id'])))
+    finally:
+        connection.close()
+    return render_template('task_from_assessment.html', draft=draft, record=record, suggestion=suggestion,
+                           check_index=check_index, title=title, error=error, existing=existing), (400 if error else 200)
+
+
 @app.post('/drafts/<int:draft_id>/tasks/<int:task_id>')
 def update_project_task(draft_id, task_id):
     get_draft(draft_id)
