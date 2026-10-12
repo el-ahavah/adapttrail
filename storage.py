@@ -81,5 +81,12 @@ def connect(config):
         publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
         source_title TEXT NOT NULL, changes TEXT NOT NULL, reason TEXT NOT NULL
     )""")
+    task_columns = {row['name'] for row in connection.execute('PRAGMA table_info(project_tasks)')}
+    if 'source_assessment_id' not in task_columns:
+        connection.execute('ALTER TABLE project_tasks ADD COLUMN source_assessment_id INTEGER REFERENCES assessments(id) ON DELETE SET NULL')
+    if 'source_check_index' not in task_columns:
+        connection.execute('ALTER TABLE project_tasks ADD COLUMN source_check_index INTEGER')
+    connection.execute('CREATE UNIQUE INDEX IF NOT EXISTS tasks_assessment_check ON project_tasks(project_id,source_assessment_id,source_check_index)')
+    connection.execute('CREATE INDEX IF NOT EXISTS tasks_source_assessment ON project_tasks(source_assessment_id)')
     connection.commit()
     return connection
