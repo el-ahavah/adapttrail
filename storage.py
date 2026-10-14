@@ -88,5 +88,11 @@ def connect(config):
         connection.execute('ALTER TABLE project_tasks ADD COLUMN source_check_index INTEGER')
     connection.execute('CREATE UNIQUE INDEX IF NOT EXISTS tasks_assessment_check ON project_tasks(project_id,source_assessment_id,source_check_index)')
     connection.execute('CREATE INDEX IF NOT EXISTS tasks_source_assessment ON project_tasks(source_assessment_id)')
+    progress_columns = {row['name'] for row in connection.execute('PRAGMA table_info(progress_entries)')}
+    if 'source_task_id' not in progress_columns:
+        connection.execute('ALTER TABLE progress_entries ADD COLUMN source_task_id INTEGER REFERENCES project_tasks(id) ON DELETE SET NULL')
+    if 'source_task_title' not in progress_columns:
+        connection.execute("ALTER TABLE progress_entries ADD COLUMN source_task_title TEXT NOT NULL DEFAULT ''")
+    connection.execute('CREATE INDEX IF NOT EXISTS progress_source_task ON progress_entries(source_task_id,id)')
     connection.commit()
     return connection
