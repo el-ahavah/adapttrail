@@ -18,9 +18,9 @@
 {% elif event.kind == 'assessment' %}
 <h3>Approach assessed: {{ {'garden-mulch':'Soil cover','rainwater':'Rainwater collection','water-log':'Water monitoring'}.get(event.record.approach, event.record.approach) }}</h3><p>{{ event.result.status }}</p><p class="note">Saved planning guidance · Rules {{ event.record.rule_version }}</p><a href="{{ url_for('assessment_result', assessment_id=event.record.id) }}">Read saved assessment and context</a>
 {% else %}
-<h3>{{ event.record.entry_type|capitalize }} recorded</h3><p class="preserve">{{ event.record.observation }}</p>
+<h3>{{ event.record.entry_type|capitalize }} recorded</h3><p class="preserve">{{ event.record.observation }}</p>{% if event.record.source_task_title %}<div class="observation-source"><p class="eyebrow">Task when recorded</p><p class="preserve">{{ event.record.source_task_title }}</p>{% if event.record.source_task_id %}<a href="{{ url_for('project_tasks', draft_id=draft.id, archived=1, _anchor='task-' ~ event.record.source_task_id) }}">View linked task →</a>{% endif %}</div>{% endif %}
 {% if event.record.measurement is not none and event.record.measurement != '' %}<p>{{ event.record.metric }}: <strong>{{ event.record.measurement }} {{ event.record.unit }}</strong><br>Measurement period: {{ event.record.period }}</p>{% else %}<p>No measurement recorded.</p>{% endif %}
-<p class="note">Saved {{ event.record.created_at }} UTC · observation date supplied by you</p><a class="text-link" href="{{ url_for('project_progress', draft_id=draft.id) }}">Review progress entries →</a>
+<p class="note">Saved {{ event.record.created_at }} UTC · observation date supplied by you</p><a class="text-link" href="{{ url_for('project_progress', draft_id=draft.id, _anchor='entry-' ~ event.record.id) }}">Review progress entries →</a>
 {% endif %}
 </section></li>
 {% endfor %}
