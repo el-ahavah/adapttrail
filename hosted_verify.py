@@ -73,6 +73,14 @@ def verify():
         assert b'Updated private checklist task' in alice.get(task_path,base_url='https://localhost').data
         assert b'Open checklist' in alice.get(path,base_url='https://localhost').data
         print('AdaptTrail hosted checklist verification passed: persistence, editing, completion, archive/restore, CSRF and owner isolation.', flush=True)
+        assert post(alice, task_update, dict(csrf_token=task_data['csrf_token'],intent='complete')).status_code == 302
+        task_progress = progress | dict(source_task_id=str(task['id']),observation='Linked task observation',entry_type='observation',measurement='',unit='',metric='',period='')
+        assert post(alice,path + '/progress',task_progress).status_code == 302
+        assert b'Updated private checklist task' in alice.get(path + '/progress',base_url='https://localhost').data
+        assert b'Updated private checklist task' in alice.get(path + '/history',base_url='https://localhost').data
+        assert b'1 observation' in alice.get(task_path,base_url='https://localhost').data
+        assert post(bob,path + '/progress',task_progress | dict(csrf_token=csrf_bob)).status_code == 404
+        print('AdaptTrail task observation verification passed: persisted link, source wording, history, counts and ownership.',flush=True)
         from assessment import FIELDS
         answers = {key: 'unknown' for key in FIELDS}
         answers.update(csrf_token=token(alice, path + '/assess'), approach='rainwater', country='Test country',region='',crop='',resources='')
@@ -105,7 +113,7 @@ def verify():
         workspace = alice.get(path, base_url='https://localhost')
         assert b'Your plan' in workspace.data
         assert b'Read latest result' in workspace.data
-        assert b'Verification observation' in workspace.data
+        assert b'Linked task observation' in workspace.data
         dashboard = alice.get('/drafts', base_url='https://localhost')
         assert dashboard.status_code == 200
         assert b'Your next step starts here.' in dashboard.data
