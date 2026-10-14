@@ -381,7 +381,7 @@ def project_tasks(draft_id):
                 with connection:
                     connection.execute('INSERT INTO project_tasks (project_id,title) VALUES (?,?)', (draft_id, title))
                 return redirect(url_for('project_tasks', draft_id=draft_id))
-        tasks = connection.execute('SELECT * FROM project_tasks WHERE project_id=? ORDER BY id', (draft_id,)).fetchall()
+        tasks = connection.execute('''SELECT t.*, (SELECT COUNT(*) FROM progress_entries p WHERE p.source_task_id=t.id AND p.project_id=t.project_id) AS observation_count, (SELECT MAX(p.id) FROM progress_entries p WHERE p.source_task_id=t.id AND p.project_id=t.project_id) AS latest_observation_id FROM project_tasks t WHERE t.project_id=? ORDER BY t.id''', (draft_id,)).fetchall()
     finally:
         connection.close()
     active = [task for task in tasks if not task['archived']]
