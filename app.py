@@ -457,6 +457,18 @@ def update_project_task(draft_id, task_id):
 @app.route('/drafts/<int:draft_id>/progress', methods=['GET', 'POST'])
 def project_progress(draft_id):
     draft = get_draft(draft_id)
+    source_task = None
+    source_id = request.form.get('source_task_id', '') if request.method == 'POST' else request.args.get('task_id', '')
+    if source_id:
+        if not re.fullmatch(r'[0-9]{1,18}', source_id):
+            abort(400)
+        connection = database()
+        try:
+            source_task = connection.execute('SELECT * FROM project_tasks WHERE id=? AND project_id=? AND completed=1', (int(source_id),draft_id)).fetchone()
+        finally:
+            connection.close()
+        if source_task is None:
+            abort(404)
     values = dict(entry_date=date.today().isoformat(), observation='', measurement='', unit='', metric='', period='', entry_type='observation')
     errors = []
     if request.method == 'POST':
@@ -491,8 +503,8 @@ def project_progress(draft_id):
             connection = database()
             try:
                 with connection:
-                    connection.execute('INSERT INTO progress_entries (project_id,entry_date,observation,measurement,unit,metric,period,entry_type) VALUES (?,?,?,?,?,?,?,?)',
-                        (draft_id, values['entry_date'], values['observation'], values['measurement'] or None, values['unit'], values['metric'], values['period'], values['entry_type']))
+                    connection.execute('INSERT INTO progress_entries (project_id,entry_date,observation,measurement,unit,metric,period,entry_type,source_task_id,source_task_title) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                        (draft_id, values['entry_date'], values['observation'], values['measurement'] or None, values['unit'], values['metric'], values['period'], values['entry_type'], source_task['id'] if source_task else None, source_task['title'] if source_task else ''))
             finally:
                 connection.close()
             return redirect(url_for('project_progress', draft_id=draft_id))
@@ -501,7 +513,7 @@ def project_progress(draft_id):
         entries = connection.execute('SELECT * FROM progress_entries WHERE project_id=? ORDER BY entry_date,id', (draft_id,)).fetchall()
     finally:
         connection.close()
-    return render_template('progress.html', draft=draft, values=values, errors=errors, entries=entries), (400 if errors else 200)
+    return render_template('progress.html', draft=draft, values=values, errors=errors, entries=entries, source_task=source_task), (400 if errors else 200)
 
 
 @app.route('/assess/<approach>', methods=['GET', 'POST'])
