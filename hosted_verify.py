@@ -82,6 +82,14 @@ def verify():
         assert post(bob,path + '/progress',task_progress | dict(csrf_token=csrf_bob)).status_code == 404
         print('AdaptTrail task observation verification passed: persisted link, source wording, history, counts and ownership.',flush=True)
         from assessment import FIELDS
+        context = {key: 'unknown' for key in FIELDS}
+        context.update(csrf_token=token(alice, path + '/context'), crop='Private hosted crop', soil='loam')
+        assert post(alice, path + '/context', context).status_code == 302
+        assert b'value="Private hosted crop"' in alice.get(path + '/assess', base_url='https://localhost').data
+        assert bob.get(path + '/context', base_url='https://localhost').status_code == 404
+        assert post(bob, path + '/context', context | dict(csrf_token=csrf_bob)).status_code == 404
+        assert post(alice, path + '/context', context | dict(soil='invalid')).status_code == 400
+        assert b'value="Private hosted crop"' in alice.get(path + '/context', base_url='https://localhost').data
         answers = {key: 'unknown' for key in FIELDS}
         answers.update(csrf_token=token(alice, path + '/assess'), approach='rainwater', country='Test country',region='',crop='',resources='')
         saved_assessment = post(alice, path + '/assess', answers)
@@ -92,6 +100,9 @@ def verify():
         assert b'Assess again' in result_page.data
         assert b'Record an observation' in result_page.data
         assert bob.get(saved_assessment.headers['Location'], base_url='https://localhost').status_code == 404
+        assert post(alice, path + '/context', context | dict(crop='Changed hosted crop')).status_code == 302
+        assert b'Changed hosted crop' not in alice.get(saved_assessment.headers['Location'], base_url='https://localhost').data
+        print('AdaptTrail project context verification passed: persistence, prefill, validation, ownership and unchanged assessment snapshots.', flush=True)
         assessment_id = saved_assessment.headers['Location'].rsplit('/',1)[1]
         suggestion_path = path + '/assessments/' + assessment_id + '/tasks/0'
         assert alice.get(suggestion_path,base_url='https://localhost').status_code == 200
@@ -161,6 +172,7 @@ def verify():
         visitor = app.test_client()
         assert visitor.get(published.headers['Location'],base_url='https://localhost').status_code == 200
         assert b'Updated private checklist task' not in visitor.get(published.headers['Location'],base_url='https://localhost').data
+        assert b'Changed hosted crop' not in visitor.get(published.headers['Location'],base_url='https://localhost').data
         source_id = published.headers['Location'].rsplit('/',1)[1]
         adapt_path = '/drafts/from-community/' + source_id
         adapted = post(bob,adapt_path,dict(csrf_token=token(bob,adapt_path),title='Temporary adaptation',
