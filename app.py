@@ -12,7 +12,7 @@ import json
 from documented_projects import DOCUMENTED_PROJECTS
 from assessment import FIELDS, VERSION, assess
 from weather import search_locations, forecast, planning_notes, WeatherUnavailable
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 import click
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -144,6 +144,45 @@ def draft_detail(draft_id):
 
 
 DRAFT_FIELDS = ['title', 'country', 'problem', 'approach', 'conditions', 'source_id']
+
+
+CONTEXT_TEXT = {'region': 'General region', 'crop': 'Crop or plants', 'resources': 'Available resources'}
+
+
+def project_context_values(draft):
+    saved = json.loads(draft['farm_context'])
+    values = {key: saved.get(key, 'unknown') for key in FIELDS}
+    values.update({key: saved.get(key, '') for key in CONTEXT_TEXT})
+    return values, saved.get('updated_at')
+
+
+@app.route('/drafts/<int:draft_id>/context', methods=['GET', 'POST'])
+def project_context(draft_id):
+    draft = get_draft(draft_id)
+    values, updated_at = project_context_values(draft)
+    errors = []
+    if request.method == 'POST':
+        check_csrf()
+        values = {key: request.form.get(key, 'unknown').strip() for key in FIELDS}
+        values.update({key: request.form.get(key, '').strip() for key in CONTEXT_TEXT})
+        for key, (label, choices) in FIELDS.items():
+            if values[key] not in choices:
+                errors.append(f'Choose a valid value for {label.lower()}.')
+        for key, label in CONTEXT_TEXT.items():
+            if len(values[key]) > 300:
+                errors.append(f'{label} must be 300 characters or fewer.')
+        if not errors:
+            payload = values | {'updated_at': datetime.now(timezone.utc).isoformat(timespec='seconds')}
+            connection = database()
+            try:
+                with connection:
+                    connection.execute('UPDATE drafts SET farm_context=? WHERE id=? AND user_id=?',
+                                       (json.dumps(payload), draft_id, g.user['id']))
+            finally:
+                connection.close()
+            return redirect(url_for('project_context', draft_id=draft_id, saved='1'))
+    return render_template('project_context.html', draft=draft, values=values, fields=FIELDS,
+                           text_fields=CONTEXT_TEXT, updated_at=updated_at, errors=errors), (400 if errors else 200)
 
 
 @app.get('/drafts/<int:draft_id>/history')
@@ -527,6 +566,8 @@ def assess_approach(approach=None, draft_id=None):
         abort(400 if request.method == 'POST' else 404)
     values = {key: 'unknown' for key in FIELDS}
     values.update(country=draft['country'] if draft else '', region='', crop='', resources='', weather_query='', weather_location='')
+    if draft is not None and request.method == 'GET':
+        values.update(project_context_values(draft)[0])
     errors = []
     if request.method == 'POST':
         check_csrf()
