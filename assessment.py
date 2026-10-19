@@ -1,11 +1,11 @@
 """Transparent preliminary checks, not a validated suitability scoring model."""
-VERSION = 'preliminary-2-weather'
+VERSION = 'preliminary-3-explained'
 FIELDS = {
  'climate': ('Climate (self-reported)', ['unknown','seasonal','dry','wet','temperate']),
  'soil': ('Soil type', ['unknown','sandy','clay','loam','not applicable']),
  'drainage': ('Drainage', ['unknown','poor','good','not applicable']),
  'water': ('Water availability', ['unknown','low','medium','high']),
- 'growth': ('Growth stage', ['unknown','seedling','established','not applicable']),
+ 'growth': ('Growth stage', ['unknown','seedling','established','vegetative','flowering','grain filling','ripening','not applicable']),
  'budget': ('Budget level', ['unknown','low','medium','high']),
  'maintenance': ('Maintenance capacity', ['unknown','available','unavailable']),
  'roof': ('Collection surface available?', ['unknown','yes','no']),
