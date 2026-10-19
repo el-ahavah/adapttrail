@@ -4,7 +4,7 @@
 <a class="back" href="{{ url_for('draft_detail', draft_id=draft.id) }}">← Project</a>
 <p class="eyebrow">Private project information</p><h1>Your local conditions.</h1>
 <p>Save details for {{ draft.title }} once, then review them whenever you start an assessment. Keep different fields or growing seasons in separate projects when their conditions differ.</p>
-<aside class="notice">Use what you know. Choose Unknown or leave optional notes blank when unsure. These details prepare your assessment; they do not provide new crop-specific advice.</aside>
+<aside class="notice">Use what you know. Choose Unknown or leave optional notes blank when unsure. These details prepare your assessment. Soil-cover assessments offer limited maize planning prompts when the crop is maize, corn or grain maize; other crop names remain context.</aside>
 {% if request.args.get('saved') == '1' %}<p role="status">Your project information has been saved.</p>{% endif %}
 {% if updated_at %}<p class="note">Last saved: {{ updated_at }} (UTC). Review growth stage and water availability as conditions change.</p>{% endif %}
 {% if errors %}<aside class="notice" role="alert"><strong>Please check your answers.</strong>{% for error in errors %}<p>{{ error }}</p>{% endfor %}</aside>{% endif %}
