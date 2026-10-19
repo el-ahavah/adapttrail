@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Your local conditions · AdaptTrail{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('draft_detail', draft_id=draft.id) }}">← Project</a>
+<p class="eyebrow">Private project information</p><h1>Your local conditions.</h1>
+<p>Save details for {{ draft.title }} once, then review them whenever you start an assessment. Keep different fields or growing seasons in separate projects when their conditions differ.</p>
+<aside class="notice">Use what you know. Choose Unknown or leave optional notes blank when unsure. These details prepare your assessment; they do not provide new crop-specific advice.</aside>
+{% if request.args.get('saved') == '1' %}<p role="status">Your project information has been saved.</p>{% endif %}
+{% if updated_at %}<p class="note">Last saved: {{ updated_at }} (UTC). Review growth stage and water availability as conditions change.</p>{% endif %}
+{% if errors %}<aside class="notice" role="alert"><strong>Please check your answers.</strong>{% for error in errors %}<p>{{ error }}</p>{% endfor %}</aside>{% endif %}
+<form method="post" class="draft-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<fieldset><legend>Your setting</legend><p>Country: {{ draft.country }}. Update this through Edit draft. A general region is enough; do not enter an exact address.</p>
+{% for key,label in text_fields.items() %}<label for="{{ key }}">{{ label }} (optional)</label><input id="{{ key }}" name="{{ key }}" maxlength="300" value="{{ values[key] }}">{% endfor %}</fieldset>
+{% for legend, keys in [('Soil, plants and water', ['soil','drainage','growth','water','climate']), ('Resources and upkeep', ['budget','maintenance']), ('Details for particular approaches', ['roof','storage','materials','measurement','use'])] %}
+<fieldset><legend>{{ legend }}</legend><div class="assessment-inputs">
+{% for key in keys %}<div class="assessment-field"><label for="{{ key }}">{{ fields[key][0] }}</label><select id="{{ key }}" name="{{ key }}">{% for choice in fields[key][1] %}<option value="{{ choice }}" {% if values[key] == choice %}selected{% endif %}>{{ choice|capitalize }}</option>{% endfor %}</select></div>{% endfor %}
+</div></fieldset>{% endfor %}
+<p class="note">Only relevant answers are used for the selected approach. Saved details stay private and do not change earlier assessments. To remove a detail, clear the note or choose Unknown and save.</p>
+<button class="button">Save project information</button>
+<a class="text-link" href="{{ url_for('assess_approach', draft_id=draft.id) }}">Start an assessment with saved details →</a>
+<p class="note">Save your changes before opening an assessment. Weather town selection is separate and always requires confirmation.</p>
+</form>
+{% endblock %}
