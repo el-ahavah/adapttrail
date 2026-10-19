@@ -120,6 +120,26 @@ def verify():
             connection.close()
         print('AdaptTrail assessment-to-checklist verification passed: edited task, source link, duplicate protection and ownership.',flush=True)
 
+        maize_answers = answers | dict(approach='garden-mulch',crop='maize',growth='flowering',soil='sandy',water='low')
+        maize_saved = post(alice,path + '/assess',maize_answers)
+        assert maize_saved.status_code == 302
+        maize_page = alice.get(maize_saved.headers['Location'],base_url='https://localhost')
+        assert b'Suggested next steps for your conditions' in maize_page.data
+        assert b'FAO: Water shortages' in maize_page.data
+        import json
+        connection = database()
+        try:
+            maize_id = int(maize_saved.headers['Location'].rsplit('/',1)[1])
+            stored = connection.execute('SELECT result FROM assessments WHERE id=?',(maize_id,)).fetchone()
+            card = next(c for c in json.loads(stored['result'])['guidance']['cards'] if c['rule']=='maize-sensitive-stage')
+        finally:
+            connection.close()
+        card_path = path + '/assessments/' + str(maize_id) + '/tasks/' + str(card['check_index'])
+        assert post(alice,card_path,dict(csrf_token=csrf,title=card['action'])).status_code == 302
+        assert bob.get(card_path,base_url='https://localhost').status_code == 404
+        assert card['action'].encode() in alice.get(task_path,base_url='https://localhost').data
+        print('AdaptTrail explained guidance verification passed: saved maize prompts, source attribution, checklist import and owner isolation.',flush=True)
+
         assert bob.get(path + '/assess', base_url='https://localhost').status_code == 404
         workspace = alice.get(path, base_url='https://localhost')
         assert b'Your plan' in workspace.data
