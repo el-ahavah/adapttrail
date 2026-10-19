@@ -24,7 +24,7 @@ The core journey is **Discover → Assess → Adapt → Track → Share**.
 
 Users can browse climate solutions without providing a location or completing an assessment. When they want help deciding whether an approach fits, they can choose **“Help me assess this approach.”** Location and weather are supporting factors alongside their goals, soil, crops, resources, and other relevant conditions.
 
-The following table describes the intended assessment scope, not a claim that every factor already drives advice. The current form saves crop and resource notes as context; preliminary rules support only rainwater collection, soil cover, and water monitoring. See the stage 1 review for the implemented behavior.
+The following table describes the intended assessment scope, not a claim that every factor already drives advice. Preliminary rules support only rainwater collection, soil cover, and water monitoring. Soil-cover assessments recognize maize, corn or grain maize for limited stage-aware planning prompts; other crops and free-text resource notes remain context. See the stage 1 review for the implemented behavior.
 
 The intended assessment considers factors relevant to the selected action:
 
@@ -381,8 +381,17 @@ Hosted setup: apply `sql/task-observations.sql` before deploying. Existing entri
 
 Open a private project and select **Manage project information**. Save crop or plants, general region, resources, and structured soil, drainage, growth stage, water and upkeep answers. Unknown answers are allowed. Country stays in the existing draft editor; no exact address is required. Each project has its own details, so different sites or growing seasons need not share assumptions.
 
-New project assessment forms prefill these details. Review them as conditions change. Editing an assessment does not update the reusable information, and updating project information does not rewrite old assessment snapshots. Standalone assessments remain independent. Weather locations are still explicitly selected for each assessment rather than reused automatically. Crop and resource notes remain context, not a new crop-specific advice engine.
+New project assessment forms prefill these details. Review them as conditions change. Editing an assessment does not update the reusable information, and updating project information does not rewrite old assessment snapshots. Standalone assessments remain independent. Weather locations are still explicitly selected for each assessment rather than reused automatically. Stage 3 now adds limited maize planning prompts to soil-cover assessments; other crops and resource notes remain context.
 
 Details are owner-only and excluded from automatic publication. Clear a text field or choose Unknown and save to remove a detail from the reusable record. Previous assessment snapshots retain their original answers; deleting the project removes both the project information and its assessment history.
 
-Apply `sql/project-context.sql` before deploying this release. It adds a default-empty text JSON column to the existing private drafts table and retains its backend grants and RLS. SQLite upgrades on connection. No new external service or dependency is introduced. Tests in `tests/test_project_context.py` cover reuse, validation, ownership, escaping, publication privacy, unchanged snapshots, weather-search edits and existing-database upgrades. Hosted smoke verification exercises PostgreSQL persistence and isolation. Stage 3 (personalized guidance) has not begun.
+Apply `sql/project-context.sql` before deploying this release. It adds a default-empty text JSON column to the existing private drafts table and retains its backend grants and RLS. SQLite upgrades on connection. No new external service or dependency is introduced. Tests in `tests/test_project_context.py` cover reuse, validation, ownership, escaping, publication privacy, unchanged snapshots, weather-search edits and existing-database upgrades. Hosted smoke verification exercises PostgreSQL persistence and isolation. The stage 3 release below builds on this information.
+
+
+### Explained guidance (stage 3, initial release)
+
+New assessments show **Suggested next steps for your conditions**: an action, explanation, the answers that triggered it, source links where applicable, and explicit limitations. Soil-cover assessments include limited maize growth-stage prompts; general soil, resource, water-quality and saved-weather checks support the existing approaches. Users can add suggestions to their private checklist and record observations after completing tasks.
+
+This is transparent rule-based planning support, not a validated agricultural recommendation or an AI prediction. Other crops are explicitly unsupported for crop-specific guidance. No irrigation doses, suitability scores or expected yield gains are calculated. Local agricultural review and farmer validation remain outstanding.
+
+See [the rule map, sources and review requirements](docs/GUIDANCE_RULES.md). Old assessment snapshots retain their original wording and source metadata; new rules only apply to new assessments. No database migration or paid dependency is needed. Alerts and external messaging remain stage 4.
