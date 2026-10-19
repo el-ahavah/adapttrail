@@ -11,6 +11,7 @@ import re
 import json
 from documented_projects import DOCUMENTED_PROJECTS
 from assessment import FIELDS, VERSION, assess
+from guidance import add_guidance
 from weather import search_locations, forecast, planning_notes, WeatherUnavailable
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -608,6 +609,7 @@ def assess_approach(approach=None, draft_id=None):
                 except WeatherUnavailable as error:
                     result['weather_error'] = str(error)
 
+            add_guidance(approach, values, result)
             connection = database()
             try:
                 with connection:
