@@ -375,3 +375,14 @@ Completed tasks offer **Record what happened**, opening the progress form with t
 Each linked entry stores the task ID and its title at recording time. Renaming, reopening or archiving the task does not rewrite previous observations. Progress history and the adaptation timeline link back to the task. Checklist cards show the linked observation count and a link to the latest saved entry. Multiple observations per task are allowed. These records do not establish causation or verified impact and are not automatically published.
 
 Hosted setup: apply `sql/task-observations.sql` before deploying. Existing entries retain empty source fields. Local SQLite upgrades automatically. Mobile visual verification remains separate from automated workflow tests.
+
+
+### Reusable project information (stage 2)
+
+Open a private project and select **Manage project information**. Save crop or plants, general region, resources, and structured soil, drainage, growth stage, water and upkeep answers. Unknown answers are allowed. Country stays in the existing draft editor; no exact address is required. Each project has its own details, so different sites or growing seasons need not share assumptions.
+
+New project assessment forms prefill these details. Review them as conditions change. Editing an assessment does not update the reusable information, and updating project information does not rewrite old assessment snapshots. Standalone assessments remain independent. Weather locations are still explicitly selected for each assessment rather than reused automatically. Crop and resource notes remain context, not a new crop-specific advice engine.
+
+Details are owner-only and excluded from automatic publication. Clear a text field or choose Unknown and save to remove a detail from the reusable record. Previous assessment snapshots retain their original answers; deleting the project removes both the project information and its assessment history.
+
+Apply `sql/project-context.sql` before deploying this release. It adds a default-empty text JSON column to the existing private drafts table and retains its backend grants and RLS. SQLite upgrades on connection. No new external service or dependency is introduced. Tests in `tests/test_project_context.py` cover reuse, validation, ownership, escaping, publication privacy, unchanged snapshots, weather-search edits and existing-database upgrades. Hosted smoke verification exercises PostgreSQL persistence and isolation. Stage 3 (personalized guidance) has not begun.
