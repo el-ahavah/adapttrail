@@ -6,7 +6,9 @@
 
 ## Project status
 
-The first Flask prototype is implemented: Home, Discover, action filtering, fictional project detail pages, and local project drafts saved in SQLite. It runs locally and has not been deployed. Registration, sign-in, sign-out, and draft ownership are implemented locally. Hosted storage, assessments, progress observations, and publication are planned. No partnerships, UN affiliation, verified impact, or worldwide originality are claimed.
+AdaptTrail is a deployed Flask application with accounts, private projects, preliminary assessments, optional weather snapshots, assessment-linked checklists, task-linked observations, measurement comparisons, adaptation history, and explicit community publication. It uses SQLite locally and PostgreSQL for hosted storage. Discover includes six sourced external examples and three labelled fictional demonstrations. No partnerships, UN affiliation, verified impact, or worldwide originality are claimed.
+
+See the [stage 1 review](docs/PLATFORM_REVIEW.md) for the verified feature inventory, limitations, test results, and proposed next stage.
 
 ## The idea
 
@@ -22,7 +24,9 @@ The core journey is **Discover → Assess → Adapt → Track → Share**.
 
 Users can browse climate solutions without providing a location or completing an assessment. When they want help deciding whether an approach fits, they can choose **“Help me assess this approach.”** Location and weather are supporting factors alongside their goals, soil, crops, resources, and other relevant conditions.
 
-The assessment considers only factors relevant to the selected action:
+The following table describes the intended assessment scope, not a claim that every factor already drives advice. The current form saves crop and resource notes as context; preliminary rules support only rainwater collection, soil cover, and water monitoring. See the stage 1 review for the implemented behavior.
+
+The intended assessment considers factors relevant to the selected action:
 
 | Factor | Information considered |
 | --- | --- |
@@ -37,7 +41,7 @@ The assessment considers only factors relevant to the selected action:
 
 The platform should explain why an option may fit, possible adjustments, missing information, and what to check before proceeding. It must distinguish user observations from external data and show sources, dates, and uncertainty. Forecasts describe possible future weather; they are not direct measurements at the user's site.
 
-The first assessment will use a small set of documented, reviewed rules for selected water-conservation approaches. Weather integration is a later enhancement unless a suitable source, reuse terms, coverage, and free allowance are confirmed. If weather data is unavailable, browsing and project tracking still work; the assessment identifies the gap.
+The current assessment uses a small set of transparent preliminary rules for selected water-conservation approaches. These rules are not expert-validated. Optional Open-Meteo weather snapshots are implemented; they are not crop-specific predictions. If weather data is unavailable, browsing and project tracking still work; the assessment identifies the gap.
 
 AI may later help explain guidance in everyday language. It must not invent measurements or evidence, and a suitability assessment does not guarantee an outcome.
 
@@ -122,7 +126,7 @@ Users choose when to publish. Submissions begin as self-reported. Evidence links
 
 ### Starting content and data sources
 
-Begin with a small curated collection of real water-conservation case studies whose reuse terms permit inclusion. Keep attribution, source links, publication dates, and limitations. No real case studies have been collected yet.
+Begin with a small curated collection of real water-conservation case studies whose reuse terms permit inclusion. Keep attribution, source links, publication dates, and limitations. Six attributed external summaries are now included; they are not AdaptTrail pilot outcomes.
 
 Use three clearly labelled fictional examples to demonstrate the journey, kept separate from real submissions and impact totals. Invite a few consenting pilot contributors before expanding public participation.
 
@@ -148,7 +152,7 @@ The platform shares experiences; it does not certify engineering designs or drin
 
 These features are outside the first release:
 
-- Weather-data integration and richer suitability assessments.
+- Richer, locally reviewed suitability guidance beyond the implemented optional weather snapshots.
 - Map-based discovery as an optional browsing aid.
 - Team workspaces and structured practitioner review.
 - Multilingual content and translation with access to the original text.
@@ -160,11 +164,9 @@ AI must not invent evidence, mark claims as verified, or promise outcomes. Paid 
 
 ## Technology and budget
 
-Python and Flask are the proposed application stack. GitHub will hold the code and development history.
+Python and Flask power the application, with JavaScript for optional interface enhancements. GitHub holds the code and development history. Render hosts the application, and Supabase PostgreSQL stores hosted records. Accounts are managed by Flask, not Supabase Auth.
 
-Hosting and database choices are **not yet finalised**. Options discussed include Render Free for the application, and Supabase Free or Neon Free for the database. Supabase is a candidate for accounts and file storage as well. Provider choices remain subject to checking current terms and application requirements. The project owner's requirement is no recurring hosting or database charges while operating within free-plan allowances. Expiring database trials should be avoided.
-
-Free plans have capacity and availability limits, and providers can change their terms. A custom domain is optional and generally has a recurring registration renewal. A free provider address can be used initially. Public deployment should wait until persistent storage, access controls, configuration, and backup/export procedures are checked.
+The project aims to operate within free service allowances without paid AI dependencies. Provider limits and pricing must be checked before changing service usage; this document does not guarantee ongoing free capacity. The existing provider address avoids requiring a custom domain.
 
 ## How we will measure progress
 
@@ -216,9 +218,9 @@ Open http://127.0.0.1:5000 in your browser. The development server is for local 
 - `static/style.css`: responsive styling.
 - `requirements.txt`: pinned direct application dependency.
 
-The demonstration collection remains separate from user drafts. Create a draft through **My drafts → Create a draft**. Drafts are stored in `instance/drafts.sqlite3` and persist after restarting. They can optionally reference a fictional demo as inspiration. Open a saved draft and choose **Edit draft** to update it, or **Delete draft** to review a confirmation page. Deletion requires an explicit confirmation and cannot be undone. Progress observations and public publication are not implemented yet.
+The demonstration collection remains separate from user drafts. Create a draft through **My drafts → Create a draft**. Drafts are stored in `instance/drafts.sqlite3` and persist after restarting. They can optionally reference a fictional demo as inspiration. Open a saved draft and choose **Edit draft** to update it, or **Delete draft** to review a confirmation page. Deletion requires an explicit confirmation and cannot be undone. Progress observations and explicit publication are implemented; private notes are not automatically published.
 
-This remains a local prototype. Create an account with a username and a password of 8–128 characters, then sign in. Each account can access only its own drafts. Passwords are hashed, and state-changing forms require CSRF tokens. Run on the default loopback address. Before public deployment, add login rate limiting, HTTPS with secure cookies, production secret configuration, and a hosted database. Password recovery is not implemented yet. SQLite here is a learning step, not the selected hosted database. No weather API or paid services are required.
+For local development, create an account with a username and a password of 8–128 characters, then sign in. Each account can access only its own drafts. Passwords are hashed and state-changing forms require CSRF tokens. Use the loopback development server locally. Production configuration enables secure cookies and basic authentication rate limiting and requires production secrets and a PostgreSQL connection. Password recovery is not implemented. Weather is optional; core recordkeeping works without a weather request.
 
 The `instance/` directory and its session key are excluded from Git. To back up local drafts, stop the app and copy `instance/drafts.sqlite3` to a safe private location.
 
@@ -226,6 +228,7 @@ Run the persistence and form checks:
 
 ```bash
 python -m unittest discover -s tests -v
+node --test tests/test_progress_comparison.cjs
 ```
 
 ## Licence
@@ -246,10 +249,10 @@ Use this only for drafts you own. It leaves already assigned drafts unchanged. B
 
 ## Hosted deployment preparation
 
-`render.yaml` defines a Free Render web service and an external PostgreSQL database connection. There is no Render database trial in this configuration. Hosted deployment has not yet been completed or verified.
+`render.yaml` defines a Free Render web service and an external PostgreSQL database connection. There is no Render database trial in this configuration. Hosted deployment and database workflows were verified in the previous release. The stage 1 review reruns local automated checks; it does not constitute a new live deployment verification.
 
 1. Create a dedicated Supabase Free project for AdaptTrail.
-2. Apply `sql/hosted-schema.sql` to that project's SQL editor. Tables are stored in `adapttrail_private`, outside the exposed Data API. Do not expose this schema. The server database owner accesses it; Flask enforces draft ownership. These accounts use Flask authentication, not Supabase Auth.
+2. Apply `sql/hosted-schema.sql` to that project's SQL editor. Tables are stored in `adapttrail_private`, outside the exposed Data API. Do not expose this schema. The backend uses the dedicated application role; Flask enforces draft ownership. Follow the subsequent role, RLS, and feature migrations in `sql/` as well; this initial schema alone does not install every current feature. These accounts use Flask authentication, not Supabase Auth.
 3. In Supabase's **Connect** dialog, copy the **Session pooler** connection string and insert the database password, percent-encoding reserved characters. Set this privately as `DATABASE_URL` in Render. Never commit it or paste it into public messages.
 4. Render's Blueprint generates `SECRET_KEY` and sets `APP_ENV=production`. Missing production settings stop startup instead of falling back to disposable SQLite storage.
 5. Deploy and verify registration, ownership isolation, restart persistence, and `/health` against the real database before inviting users.
@@ -258,7 +261,7 @@ Local accounts and drafts are not automatically copied to the hosted database. B
 
 Production enables secure cookies, response security headers, and a basic sign-in/registration rate limit. The initial service uses one Gunicorn worker. Rate-limit counters are process-local and reset on restart; shared counters and trusted proxy-aware client addressing are future improvements. Password recovery and account deletion are still pending.
 
-For exports, use Supabase's database backup/export tooling; keep exported account hashes and draft data private. Hosted schema and full PostgreSQL workflows still require live verification. The local SQLite tests do not substitute for that check.
+For exports, use Supabase's database backup/export tooling; keep exported account hashes and draft data private. After hosted schema or application changes, verify affected PostgreSQL workflows again. Local SQLite tests do not substitute for that check.
 
 
 ## Progress tracking (implemented)
