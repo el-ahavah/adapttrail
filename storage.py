@@ -96,5 +96,7 @@ def connect(config):
     connection.execute('CREATE INDEX IF NOT EXISTS progress_source_task ON progress_entries(source_task_id,id)')
     if 'farm_context' not in {row['name'] for row in connection.execute('PRAGMA table_info(drafts)')}:
         connection.execute("ALTER TABLE drafts ADD COLUMN farm_context TEXT NOT NULL DEFAULT '{}'")
+    if 'weather_watch' not in {row['name'] for row in connection.execute('PRAGMA table_info(drafts)')}:
+        connection.execute("ALTER TABLE drafts ADD COLUMN weather_watch TEXT NOT NULL DEFAULT '{}'")
     connection.commit()
     return connection
