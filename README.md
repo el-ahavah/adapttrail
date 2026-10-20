@@ -394,4 +394,13 @@ New assessments show **Suggested next steps for your conditions**: an action, ex
 
 This is transparent rule-based planning support, not a validated agricultural recommendation or an AI prediction. Other crops are explicitly unsupported for crop-specific guidance. No irrigation doses, suitability scores or expected yield gains are calculated. Local agricultural review and farmer validation remain outstanding.
 
-See [the rule map, sources and review requirements](docs/GUIDANCE_RULES.md). Old assessment snapshots retain their original wording and source metadata; new rules only apply to new assessments. No database migration or paid dependency is needed. Alerts and external messaging remain stage 4.
+See [the rule map, sources and review requirements](docs/GUIDANCE_RULES.md). Old assessment snapshots retain their original wording and source metadata; new rules only apply to new assessments. No database migration or paid dependency is needed. Stage 4 now adds on-demand in-app weather notices; background alerts and external messaging remain future work.
+
+
+### Weather notices (stage 4, initial release)
+
+Open a private project → **Open weather notices**. Confirm a town, choose reminder preferences, save, then press **Check weather now**. The page shows forecast precipitation, a three-day no-precipitation reminder, and/or a user-selected temperature limit, with dates and practical planning prompts.
+
+This version checks weather only on request. It sends no SMS, email or push messages and does not monitor while the user is away. It does not issue official hazard warnings or diagnose drought. Outdated or failed checks and changed project conditions require refresh; old forecasts are clearly separated as reference only. Turning off notices removes their saved settings and latest weather check.
+
+Apply `sql/weather-notices.sql` before deployment. See [weather notice behavior, privacy and testing](docs/WEATHER_NOTICES.md). No paid dependency was added. Stage 5 has not begun.
