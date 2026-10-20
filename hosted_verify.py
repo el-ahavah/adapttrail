@@ -186,6 +186,33 @@ def verify():
             assert row['title'] == 'Updated verification draft'
         finally:
             connection.close()
+        # Synthetic forecast isolates persistence checks from provider availability.
+        from unittest.mock import patch
+        from datetime import datetime, timedelta, timezone
+        from weather import WeatherUnavailable
+        weather_path = path + '/weather'
+        notice_place = dict(id='fixture',label='Private weather verification town',latitude=7,longitude=8)
+        with patch('app.search_locations',return_value=[notice_place]):
+            assert post(alice,weather_path,dict(csrf_token=csrf,intent='search',query='Verification town')).status_code == 200
+        preferences = dict(csrf_token=csrf,intent='save',location='fixture',rain='yes',dry='yes',consent='yes')
+        assert post(alice,weather_path,preferences).status_code == 302
+        now = datetime.now(timezone.utc)
+        fixture = dict(location=notice_place,timezone='UTC',retrieved_at=now.isoformat(),
+                       days=[dict(date=(now.date()+timedelta(days=i)).isoformat(),low=20,high=30,precipitation=2,kind='Forecast') for i in range(-1,3)])
+        with patch('app.forecast',return_value=fixture):
+            assert post(alice,weather_path,dict(csrf_token=csrf,intent='refresh')).status_code == 302
+        notice_page = alice.get(weather_path,base_url='https://localhost')
+        assert b'Reminders from your last check' in notice_page.data
+        assert b'Precipitation in the forecast' in notice_page.data
+        assert bob.get(weather_path,base_url='https://localhost').status_code == 404
+        assert post(bob,weather_path,dict(csrf_token=csrf_bob,intent='disable')).status_code == 404
+        with patch('app.forecast',side_effect=WeatherUnavailable('Synthetic outage')):
+            assert post(alice,weather_path,dict(csrf_token=csrf,intent='refresh')).status_code == 302
+        failed_page = alice.get(weather_path,base_url='https://localhost')
+        assert b'Could not update weather' in failed_page.data
+        assert b'Reminders from your last check' not in failed_page.data
+        print('AdaptTrail weather notices verification passed: synthetic forecast persistence, reminder dates, owner isolation and outage handling.',flush=True)
+
         public = dict(csrf_token=token(alice,path + '/publish'),title='Temporary public test',country='',problem='Test problem',action='Test action',outcome='',lessons='Test lessons',intent='publish',consent='yes')
         published = post(alice,path + '/publish',public)
         assert published.status_code == 302
@@ -193,6 +220,10 @@ def verify():
         assert visitor.get(published.headers['Location'],base_url='https://localhost').status_code == 200
         assert b'Updated private checklist task' not in visitor.get(published.headers['Location'],base_url='https://localhost').data
         assert b'Changed hosted crop' not in visitor.get(published.headers['Location'],base_url='https://localhost').data
+        assert b'Private weather verification town' not in visitor.get(published.headers['Location'],base_url='https://localhost').data
+        assert post(alice,weather_path,dict(csrf_token=csrf,intent='disable')).status_code == 302
+        assert b'Private weather verification town' not in alice.get(weather_path,base_url='https://localhost').data
+        print('AdaptTrail weather notices removal and publication privacy verification passed.',flush=True)
         source_id = published.headers['Location'].rsplit('/',1)[1]
         adapt_path = '/drafts/from-community/' + source_id
         adapted = post(bob,adapt_path,dict(csrf_token=token(bob,adapt_path),title='Temporary adaptation',
