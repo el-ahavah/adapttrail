@@ -51,13 +51,37 @@ def database():
 def form_token():
     if 'csrf_token' not in session:
         session['csrf_token'] = secrets.token_hex(32)
-    return dict(csrf_token=session['csrf_token'], current_user=g.user)
+    return dict(csrf_token=session['csrf_token'], current_user=g.user,
+                low_data=low_data_enabled())
 
 PROJECTS = [
     dict(id='garden-mulch', title='Keeping moisture in a school garden', action='Soil cover', setting='School garden', problem='A school wants to reduce frequent watering during dry periods.', approach='Explore covering exposed soil with suitable mulch and observing moisture before watering.', conditions='Plant type, soil drainage, available mulch, and maintenance capacity need assessment.', lessons='Record watering volumes and weather over the same measurement period. No measured results are available.', icon='01'),
     dict(id='rainwater', title='Making better use of seasonal rain', action='Rainwater collection', setting='Community garden', problem='A garden has an unreliable supply of water for plants.', approach='Document an existing roof collection and storage system and explore improvements with local guidance.', conditions='Roof materials, storage, overflow, maintenance, and intended water use matter.', lessons='Track collected water and maintenance. This example is not a construction design or drinking-water recommendation.', icon='02'),
     dict(id='water-log', title='Understanding where garden water goes', action='Water monitoring', setting='Youth group', problem='A group does not know how much water its garden uses.', approach='Keep a dated record of watering volumes, rainfall observations, and plant condition.', conditions='Use a consistent measurement method and record changes in garden size or plants.', lessons='A baseline helps compare later observations. Missing entries must not be counted as zero.', icon='03'),
 ]
+
+
+def low_data_enabled():
+    """Explicit browser preference takes priority over the Save-Data hint."""
+    preference = request.cookies.get('adapttrail-data-mode')
+    if preference in {'low', 'standard'}:
+        return preference == 'low'
+    return request.headers.get('Save-Data', '').lower() == 'on'
+
+
+@app.route('/accessibility', methods=['GET', 'POST'])
+def accessibility():
+    if request.method == 'POST':
+        check_csrf()
+        mode = request.form.get('data_mode')
+        if mode not in {'low', 'standard'}:
+            abort(400, description='Choose standard or low-data mode.')
+        response = redirect(url_for('accessibility', saved='1'), code=303)
+        response.set_cookie('adapttrail-data-mode', mode, max_age=31536000,
+                            secure=production, httponly=True, samesite='Lax')
+        return response
+    return render_template('accessibility.html')
+
 
 @app.get('/')
 def home():
@@ -469,6 +493,11 @@ def security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    if response.mimetype == 'text/html':
+        # HTML contains session-specific controls and the browser's display choice.
+        response.headers['Cache-Control'] = 'no-store'
+        response.vary.add('Cookie')
+        response.vary.add('Save-Data')
     if production:
         response.headers['Strict-Transport-Security'] = 'max-age=31536000'
     if request.path.startswith(('/drafts', '/assess')) or request.path in ['/login', '/register']:

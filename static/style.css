@@ -49,3 +49,31 @@ fieldset { min-width: 0; max-width: 100%; }
   .draft-actions { gap: 12px; }
   .draft-actions .button { width: 100%; }
 }
+
+/* Low-data pages keep content and controls available without app.js. */
+html[data-low-data=true] .hero { grid-template-columns: 1fr; }
+html[data-low-data=true] .card:hover,
+html[data-low-data=true] .button:hover { transform: none; }
+@media print {
+  :root, html[data-theme=dark] {
+    --paper: #fff; --white: #fff; --ink: #000; --muted: #333; --line: #999;
+    color-scheme: light;
+  }
+  .site-header, footer, .skip, .hero-art, form, .workspace-nav,
+  .result-jump-links, .timeline-filters, .checklist-tools, .comparison-panel,
+  .draft-actions, .hero-actions { display: none !important; }
+  body { background: white !important; color: black !important; font-size: 12pt; }
+  main { max-width: none; min-height: 0; padding: 0; }
+  .hero, .cards, .assessment-columns, .dashboard-activity, .task-layout {
+    display: block;
+  }
+  .weather-table { overflow: visible; }
+  .weather-table table { width: 100%; }
+  .weather-table th, .weather-table td { padding: 6px; }
+  .card, .activity-panel, .notice, .next, .assessment-summary, .task-card {
+    background: white !important; color: black !important; box-shadow: none;
+  }
+  h1 { font-size: 28pt; }
+  h2 { font-size: 20pt; break-after: avoid; }
+  a { text-decoration: underline; }
+}

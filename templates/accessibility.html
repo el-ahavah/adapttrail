@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Accessibility and data use · AdaptTrail{% endblock %}
+{% block content %}
+<h1>Use AdaptTrail your way.</h1>
+{% if request.args.get('saved') == '1' %}<p class="notice" role="status">Your display preference is saved for this browser.</p>{% endif %}
+<p>Current mode: <strong>{{ 'Low data' if low_data else 'Standard' }}</strong>.</p>
+<form method="post" class="draft-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<fieldset><legend>Choose your data use</legend>
+<label><input type="radio" name="data_mode" value="standard" {% if not low_data %}checked{% endif %}> Standard</label>
+<p>Show the homepage illustration and optional search, filtering and theme controls.</p>
+<label><input type="radio" name="data_mode" value="low" {% if low_data %}checked{% endif %}> Low data</label>
+<p id="data-help">Skip the homepage illustration and the general enhancement script. Menus stay visible, and assessment forms show all questions. Project forms still work. Small scripts for essential feedback and project-specific tools may still load.</p>
+</fieldset>
+<button class="button" type="submit" aria-describedby="data-help">Save display preference</button>
+</form>
+<p class="note">This choice uses a cookie in this browser for up to a year and can be changed here at any time. If you have not chosen a mode, we use your browser's Save-Data signal when available. Clearing cookies removes your choice. Your existing colour preference is respected in both modes.</p>
+<h2>Use less data while planning</h2>
+<ul>
+<li>Leave the optional weather location blank to save an assessment without requesting a forecast.</li>
+<li>Weather notices update only when you ask to check them. Previously saved forecasts can be out of date; check their retrieval time and status.</li>
+<li>Low-data mode still needs an internet connection to load pages and save forms. It does not provide offline saving, SMS or USSD access.</li>
+</ul>
+<h2>Read a saved copy later</h2>
+<p>Open a saved assessment or project page, then use your browser's Print or Save as PDF option if available. The print layout keeps the page's text and removes navigation and input forms. Keep private copies secure, especially on shared devices. A saved forecast is a dated reference, not a live update.</p>
+<h2>Keyboard and screen access</h2>
+<p>Use Tab to move between controls and Enter to follow links. “Skip to content” goes straight to the page content. On narrow screens, open Menu to show navigation; Escape closes it. In low-data mode or without JavaScript, navigation stays visible. Weather tables can be focused and scrolled with arrow keys.</p>
+<p>Browser zoom and larger text are supported by flexible layouts. Motion effects follow your device's reduced-motion setting. Screen-reader and real-device testing is still needed; this prototype does not claim full accessibility certification.</p>
+<a class="button" href="{{ url_for('home') }}">Return home</a>
+{% endblock %}
