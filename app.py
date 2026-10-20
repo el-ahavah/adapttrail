@@ -12,6 +12,7 @@ import json
 from documented_projects import DOCUMENTED_PROJECTS
 from assessment import FIELDS, VERSION, assess
 from guidance import add_guidance
+from weather_notices import snapshot_current, parse_preferences, make_notices, notice_state, VERSION as NOTICE_VERSION
 from weather import search_locations, forecast, planning_notes, WeatherUnavailable
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -141,7 +142,8 @@ def draft_detail(draft_id):
         connection.close()
     return render_template('draft_detail.html', draft=draft, source=source, adaptation=get_adaptation(draft_id),
                            latest_assessment=latest_assessment, latest_progress=latest_progress, publication=publication, task_counts=task_counts,
-                           guidance=json.loads(latest_assessment['result'])['status'] if latest_assessment else None)
+                           guidance=json.loads(latest_assessment['result'])['status'] if latest_assessment else None,
+                           weather_status=notice_state(json.loads(draft['weather_watch']), context_values=project_context_values(draft)[0]))
 
 
 DRAFT_FIELDS = ['title', 'country', 'problem', 'approach', 'conditions', 'source_id']
@@ -184,6 +186,90 @@ def project_context(draft_id):
             return redirect(url_for('project_context', draft_id=draft_id, saved='1'))
     return render_template('project_context.html', draft=draft, values=values, fields=FIELDS,
                            text_fields=CONTEXT_TEXT, updated_at=updated_at, errors=errors), (400 if errors else 200)
+
+
+def save_weather_watch(draft, watch):
+    # A slow refresh must not undo a concurrent disable or settings change.
+    connection = database()
+    try:
+        with connection:
+            changed = connection.execute('UPDATE drafts SET weather_watch=? WHERE id=? AND user_id=? AND weather_watch=?',
+                (json.dumps(watch), draft['id'], g.user['id'], draft['weather_watch']))
+            if changed.rowcount != 1:
+                abort(409, description='Weather settings changed in another request. Reload this page before trying again.')
+    finally:
+        connection.close()
+
+
+@app.route('/drafts/<int:draft_id>/weather', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['POST'])
+def project_weather(draft_id):
+    draft = get_draft(draft_id)
+    watch = json.loads(draft['weather_watch'])
+    preferences = watch.get('preferences', dict(rain=True, dry=True, temperature=False, temperature_limit=None))
+    values = dict(preferences, query='', location='current' if watch.get('location') else '')
+    errors = []
+    matches = session.get('notice_locations', {})
+    locations = matches.get('locations', []) if matches.get('project_id') == draft_id else []
+    if request.method == 'POST':
+        check_csrf()
+        intent = request.form.get('intent')
+        if intent == 'disable':
+            save_weather_watch(draft, {})
+            if matches.get('project_id') == draft_id:
+                session.pop('notice_locations', None)
+            return redirect(url_for('project_weather', draft_id=draft_id))
+        if intent == 'refresh':
+            if not watch.get('enabled'):
+                abort(400)
+            watch['last_attempt'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
+            try:
+                snapshot = forecast(watch['location'])
+                if not snapshot_current(snapshot):
+                    raise WeatherUnavailable('Weather snapshot is outdated.')
+                context, context_updated = project_context_values(draft)
+                watch.update(snapshot=snapshot, notices=make_notices(snapshot, watch['preferences'], context),
+                             context_updated=context_updated, context_values=context, version=NOTICE_VERSION, last_error=None)
+            except WeatherUnavailable:
+                watch['last_error'] = 'Could not update weather. Any previous snapshot is for reference only; try again later.'
+            save_weather_watch(draft, watch)
+            return redirect(url_for('project_weather', draft_id=draft_id))
+        if intent not in {'search', 'save'}:
+            abort(400)
+        values = dict(rain=request.form.get('rain') == 'yes', dry=request.form.get('dry') == 'yes',
+                      temperature=request.form.get('temperature') == 'yes', temperature_limit=request.form.get('temperature_limit',''),
+                      query=request.form.get('query','').strip(), location=request.form.get('location',''))
+        if intent == 'search':
+            session.pop('notice_locations', None)
+            locations = []
+            if not 3 <= len(values['query']) <= 120:
+                errors.append('Enter a town or city using 3–120 characters.')
+            else:
+                try:
+                    locations = search_locations(values['query'])[:5]
+                    session['notice_locations'] = dict(project_id=draft_id, locations=locations)
+                    if not locations:
+                        errors.append('No matching town found. Try a nearby town.')
+                except WeatherUnavailable:
+                    errors.append('Town search is unavailable. Try again later; saved settings are unchanged.')
+            values['location'] = 'current' if watch.get('location') else ''
+        else:
+            preferences, errors = parse_preferences(request.form)
+            location = watch.get('location') if values['location'] == 'current' else next((place for place in locations if place['id'] == values['location']), None)
+            if location is None:
+                errors.append('Search for a town and confirm a matching location.')
+            if request.form.get('consent') != 'yes':
+                errors.append('Confirm that you want to save this town and enable in-app weather checks.')
+            if not errors:
+                # New location/preferences invalidate the old notice results.
+                save_weather_watch(draft, dict(enabled=True, location=location, preferences=preferences,
+                                              version=NOTICE_VERSION, updated_at=datetime.now(timezone.utc).isoformat(timespec='seconds')))
+                return redirect(url_for('project_weather', draft_id=draft_id, saved='1'))
+    context_values = project_context_values(draft)[0]
+    current = bool(watch.get('enabled') and not watch.get('last_error') and snapshot_current(watch.get('snapshot'))
+                   and watch.get('context_values') == context_values)
+    return render_template('project_weather.html', draft=draft, watch=watch, values=values, locations=locations,
+                           errors=errors, current=current, weather_status=notice_state(watch, context_values=context_values)), (400 if errors else 200)
 
 
 @app.get('/drafts/<int:draft_id>/history')
@@ -892,7 +978,7 @@ def adapt_documented(project_id):
 
 def safe_return_path(path):
     return isinstance(path,str) and re.fullmatch(
-        r'/drafts/[0-9]+/assessments/[0-9]+/tasks/[0-9]+|/drafts(?:/new|/from-community/[0-9]+|/from-documented/[a-z0-9-]+|/[0-9]+(?:/(?:edit|delete|history|progress|tasks|assess|adaptation|publish))?)?|/assess/(?:rainwater|garden-mulch|water-log)', path) is not None
+        r'/drafts/[0-9]+/assessments/[0-9]+/tasks/[0-9]+|/drafts(?:/new|/from-community/[0-9]+|/from-documented/[a-z0-9-]+|/[0-9]+(?:/(?:edit|delete|history|progress|tasks|assess|adaptation|publish|context|weather))?)?|/assess/(?:rainwater|garden-mulch|water-log)', path) is not None
 
 
 @app.get('/how-to-use')
