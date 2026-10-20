@@ -11,3 +11,41 @@
 .suggestion-action{display:inline-flex;padding:8px 12px;margin:4px 8px 10px 0;border:1px solid var(--line);border-radius:10px;background:var(--white);font-size:13px;font-weight:650;text-decoration:none;min-height:44px;align-items:center}.suggestion-source{max-width:800px;margin-top:28px}.suggestion-form{max-width:800px}.task-source-link{display:inline-block;margin:0 0 18px;font-size:12px;font-weight:650;color:var(--muted)}.task-card:target{outline:3px solid var(--ink);outline-offset:4px;scroll-margin-top:24px}.suggestion-action:focus-visible{outline:3px solid var(--ink);outline-offset:3px}@media(max-width:480px){.suggestion-form .draft-actions{align-items:stretch;flex-direction:column}.suggestion-action{max-width:100%}}
 
 .task-observe-link,.task-observation-count{display:block;width:fit-content;padding:10px 0;margin-bottom:8px;font-size:13px;font-weight:650;min-height:44px}.task-observation-count{font-weight:500;color:var(--muted)}.observation-source{border-left:3px solid var(--line);padding:10px 16px;margin:18px 0;font-size:14px;overflow-wrap:anywhere}.observation-source p{margin:6px 0}.task-observation-context{max-width:800px;overflow-wrap:anywhere}#add-entry,[id^=entry-]{scroll-margin-top:24px}[id^=entry-]:target{outline:3px solid var(--ink);outline-offset:4px}@media(max-width:480px){.task-observation-context{padding:18px}.observation-source{padding:10px 12px}.task-observe-link,.task-observation-count{max-width:100%;overflow-wrap:anywhere}}
+
+/* Stage 5: reflow, touch controls and long user-provided content. */
+main, .site-header > *, .hero > *, .task-layout > *, .workspace-status > * {
+  min-width: 0;
+}
+main { overflow-wrap: anywhere; }
+button, .button, select, summary, .nav-button { min-height: 44px; }
+button, .button { max-width: 100%; white-space: normal; }
+input:not([type=checkbox]):not([type=radio]):not([type=hidden]),
+textarea, select { min-width: 0; max-width: 100%; font-size: 16px; }
+fieldset { min-width: 0; max-width: 100%; }
+.draft-form input[type=checkbox], .draft-form input[type=radio] {
+  width: 22px; height: 22px; padding: 0; margin: 0 8px 0 0;
+  vertical-align: middle; flex-shrink: 0;
+}
+.draft-form label:has(input[type=checkbox]),
+.draft-form label:has(input[type=radio]) {
+  display: flex; align-items: center; gap: 8px; min-height: 44px;
+}
+.site-header nav a { display: inline-flex; align-items: center; min-height: 44px; }
+.weather-table { max-width: 100%; }
+.weather-table:focus-visible { outline: 3px solid var(--rust); outline-offset: 4px; }
+@media (max-width: 480px) {
+  header, main, footer { padding-left: 16px; padding-right: 16px; }
+  .brand { white-space: normal; letter-spacing: -.5px; }
+  .brand-mark { flex-shrink: 0; }
+  .brand small { max-width: 175px; }
+  .steps { grid-template-columns: 1fr; }
+  .card-top, .card-bottom, .task-card-heading, .task-section-title {
+    flex-wrap: wrap;
+  }
+  .task-sort { flex-wrap: wrap; justify-content: flex-start; }
+  .draft-form, .assessment-summary, .assessment-next, .comparison-panel {
+    padding: 16px;
+  }
+  .draft-actions { gap: 12px; }
+  .draft-actions .button { width: 100%; }
+}
