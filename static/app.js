@@ -110,9 +110,11 @@
     });
     update();
   }
-  document.querySelectorAll('textarea[maxlength]').forEach(field => {
+  document.querySelectorAll('textarea[maxlength]').forEach((field, index) => {
     const count = document.createElement('span');
     count.className = 'field-count';
+    count.id = `character-count-${index}`;
+    field.setAttribute('aria-describedby', [field.getAttribute('aria-describedby'), count.id].filter(Boolean).join(' '));
     const update = () => { count.textContent = `${field.value.length} / ${field.maxLength} characters`; };
     field.insertAdjacentElement('afterend', count);
     field.addEventListener('input', update);

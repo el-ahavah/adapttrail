@@ -26,7 +26,7 @@
 {% if watch.snapshot %}
 <details {% if current %}open{% endif %}><summary>{{ 'Forecast behind these reminders' if current else 'Previous forecast — reference only, refresh needed' }}</summary>
 <p>{{ watch.snapshot.location.label }} · {{ watch.snapshot.timezone }}</p><p>Data retrieved: {{ watch.snapshot.retrieved_at }}. Forecasts can change and may differ from your site.</p>
-<div class="weather-table"><table><caption>Three forecast days from the saved check</caption><thead><tr><th scope="col">Date</th><th scope="col">Low / high (°C)</th><th scope="col">Precipitation (mm)</th></tr></thead><tbody>{% for day in watch.snapshot.days[1:] %}<tr><td>{{ day.date }}</td><td>{{ day.low }} / {{ day.high }}</td><td>{{ day.precipitation }}</td></tr>{% endfor %}</tbody></table></div>
+<p class="note">On small screens, scroll the forecast table sideways to see every column. Keyboard users can focus the table region and use the arrow keys.</p><div class="weather-table" tabindex="0" role="region" aria-label="Weather forecast table"><table><caption>Three forecast days from the saved check</caption><thead><tr><th scope="col">Date</th><th scope="col">Low / high (°C)</th><th scope="col">Precipitation (mm)</th></tr></thead><tbody>{% for day in watch.snapshot.days[1:] %}<tr><td>{{ day.date }}</td><td>{{ day.low }} / {{ day.high }}</td><td>{{ day.precipitation }}</td></tr>{% endfor %}</tbody></table></div>
 <p class="note">Weather data: <a href="https://open-meteo.com/">Open-Meteo</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. These model values are not measurements at your farm.</p>
 </details>
 {% endif %}
