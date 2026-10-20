@@ -1,0 +1,8 @@
+[data-weather-request] input[type="checkbox"]{width:1.25rem;height:1.25rem;flex-shrink:0;margin:0 .55rem 0 0;vertical-align:middle;accent-color:var(--ink)}
+[data-weather-request] fieldset{min-width:0;border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 24px}
+[data-weather-request] legend{font-weight:700;padding:0 8px}
+[data-weather-request] select{width:100%;min-width:0;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink)}
+[data-weather-request] label{overflow-wrap:anywhere}
+[data-weather-request] [role="status"]{display:block;margin-top:12px}
+[data-weather-request][aria-busy="true"] .button{cursor:wait;opacity:.8}
+@media(max-width:600px){[data-weather-request] fieldset{padding:14px 10px}[data-weather-request] .button{max-width:100%;white-space:normal}}
