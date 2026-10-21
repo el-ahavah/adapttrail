@@ -1,7 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Action checklist · {{ draft.title }}</div>
-<script src="{{ url_for('static', filename='checklist.js') }}" defer></script>
-{% endblock %}
+{% block title %}Action checklist · {{ draft.title }} · AdaptTrail{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='checklist.css') }}">
 <div class="checklist-page" data-checklist>
@@ -35,3 +33,4 @@
 </div>
 <script src="{{ url_for('static', filename='checklist.js') }}" defer></script>
 {% endblock %}
+
