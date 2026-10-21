@@ -31,15 +31,37 @@ character counts, and no user-selectable low-data mode.
 - Add a print layout for browser Print/Save as PDF. Expand any details sections
   you need before printing; browser support differs. This is not offline app use.
 
-## Verification status
-Performed in this session:
-- Read and reviewed source through GitHub.
-- Parsed changed application JavaScript and the new browser-check script.
-- Exercised accessibility error-focus and no-error paths with a minimal DOM stub.
+## Verification status — updated 21 October 2026
 
-Not run: Python tests, a running Flask instance, browser checks, screenshots,
-real-device checks, assistive-technology checks or production deployment verification.
-The execution environment was unavailable. Do not describe these as passing.
+Implemented and deployed; automated and limited live desktop verification passed.
+This does not establish complete mobile or assistive-technology accessibility.
+
+Completed:
+- 71 Python unittest tests passed, including native assessment, task completion
+  and linked observation submissions in both standard and low-data modes without
+  JavaScript execution. Preference validation, CSRF, isolation and cache headers pass.
+- All 6 JavaScript comparison tests passed; changed JavaScript and the browser
+  check script passed syntax checks.
+- Fixed stray markup/script text in the checklist document title and added a
+  regression assertion that the title is clean and checklist.js appears once.
+- Hosted verification passed against production PostgreSQL, exercising secure
+  preference cookies, low-data authenticated workflows, logout persistence,
+  restoration of standard mode and temporary-record cleanup.
+- Live cloud Chrome desktop check (1363 CSS px): saved low-data mode, navigated
+  home, confirmed app.js and the illustration were absent from the DOM, visible
+  navigation and no homepage horizontal overflow, activated Skip to content and
+  confirmed main received focus, restored standard mode, toggled dark/light theme,
+  and visually inspected the settings page. This is not mobile emulation or a
+  network transfer-size benchmark.
+- Verification release: 25cb1ae855bb04d5dc56cb9d2bf3383e4947c0a1;
+  Render deployment dep-dbc7m36i0phs73alipa0. Hosted success logged at
+  2026-10-21T08:43:56Z.
+
+Blocked/not run: scripts/verify-stage5.cjs runtime, mobile viewport matrix,
+authenticated browser interactions, real-device/screen-reader checks and print
+output inspection. Local Chromium installation failed because the download was
+not a valid ZIP. The cloud browser exposes no viewport-resizing control. The
+server-rendered form tests above do not substitute for those browser checks.
 
 Added tests:
 - tests/test_accessibility.py: mode switching, asset omission, browser hint
@@ -57,19 +79,22 @@ GUI_TEST_URL=http://127.0.0.1:5055 node scripts/verify-stage5.cjs
 The browser script additionally requires Playwright and an installed Chromium
 browser; GUI_BROWSER_PATH may point to an existing browser.
 
-## Remaining manual checks before calling the stage validated
+## Remaining manual checks before calling the stage fully validated
 - At 320px and with 200%/400% zoom, inspect authenticated assessment, checklist,
   weather and progress screens using long project names and saved content.
 - Keyboard-test table horizontal scrolling, error focus and described counters.
 - Test screen-reader labels and errors, contrast in both themes and reduced motion.
-- Save an assessment without weather; complete a task and add an observation
-  in standard mode, low-data mode and with JavaScript disabled.
+- Repeat the automated native-form journey in an actual mobile browser: save an
+  assessment without weather, complete a task and add an observation in standard
+  mode, low-data mode and with JavaScript disabled.
 - Use a slow connection and check the Network panel: no app.js or landscape.svg
   request in low-data mode, weather requests only when explicitly requested.
 - Print an assessment containing a forecast; verify source, retrieval time,
   limitations, table columns and expanded details remain readable.
 
 ## Boundary
-Stage 5 implementation is committed; runtime and device validation remain pending.
+Stage 5 implementation is committed and deployed. Automated, hosted and limited
+desktop validation passed; mobile and assistive-technology acceptance remain open.
 No Stage 6 work, SMS/USSD integration, offline form queue, notification delivery,
 database migration or measured-impact claims are included.
+

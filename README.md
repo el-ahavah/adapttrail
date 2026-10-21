@@ -403,4 +403,31 @@ Open a private project → **Open weather notices**. Confirm a town, choose remi
 
 This version checks weather only on request. It sends no SMS, email or push messages and does not monitor while the user is away. It does not issue official hazard warnings or diagnose drought. Outdated or failed checks and changed project conditions require refresh; old forecasts are clearly separated as reference only. Turning off notices removes their saved settings and latest weather check.
 
-Apply `sql/weather-notices.sql` before deployment. See [weather notice behavior, privacy and testing](docs/WEATHER_NOTICES.md). No paid dependency was added. Stage 5 has not begun.
+Apply `sql/weather-notices.sql` before deployment. See [weather notice behavior, privacy and testing](docs/WEATHER_NOTICES.md). No paid dependency was added. Stage 5 adds accessibility and low-data improvements described below.
+
+
+
+### Accessibility and low-data access (stage 5)
+
+Use **Accessibility & data use** in the footer to choose standard or low-data mode.
+Low-data mode omits the homepage illustration and general enhancement script;
+navigation stays visible and native project forms remain usable. The preference
+is saved in this browser and overrides its Save-Data hint. An internet connection
+is still required; this is not offline saving, SMS or USSD access.
+
+The interface includes larger touch controls, narrow-screen wrapping, a focusable
+skip-link destination, keyboard-scrollable weather tables, associated character
+counters and error focus. Browser printing uses a simplified reading layout.
+The checklist page title has also been corrected for tabs and assistive readers.
+
+Verification on 21 October 2026: 71 Python tests and 6 JavaScript comparison tests
+passed. Native assessment → task → observation forms were exercised in standard
+and low-data modes. Hosted verification passed against the production database,
+including secure preference cookies, low-data authenticated workflows and cleanup.
+Live desktop browser checks confirmed mode switching, omitted assets, skip-link
+focus and theme switching. No database migration or paid dependency was added.
+
+Stage 5 is implemented and deployed, with automated and desktop checks complete;
+mobile viewport, real-device, screen-reader and print-output validation remain
+open. See [the stage 5 verification record](docs/STAGE_5.md) for the exact scope
+and remaining checks. Stage 6 has not started.
