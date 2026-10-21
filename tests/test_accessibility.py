@@ -64,3 +64,47 @@ class DataModeTests(unittest.TestCase):
             self.assertEqual(response.headers['Cache-Control'], 'no-store')
             self.assertIn('Cookie', response.vary)
             self.assertIn('Save-Data', response.vary)
+
+
+
+class AccessibleJourneyTests(unittest.TestCase):
+    """Submit native forms in both display modes without executing JavaScript."""
+    from test_drafts import DraftTests as _Fixture
+    setUp = _Fixture.setUp
+    tearDown = _Fixture.tearDown
+
+    def test_assessment_task_observation_in_both_modes(self):
+        import re
+        from assessment import FIELDS
+        from unittest.mock import patch
+        for mode in ('standard', 'low'):
+            with self.subTest(mode=mode), patch('app.forecast') as forecast:
+                self.assertEqual(self.client.post('/accessibility', data=dict(
+                    csrf_token=self.token, data_mode=mode)).status_code, 303)
+                created = self.client.post('/drafts/new', data=self.data)
+                path = created.headers['Location']
+                answers = {key: 'unknown' for key in FIELDS}
+                answers.update(csrf_token=self.token, approach='garden-mulch',
+                               country='Nigeria', region='', crop='', resources='')
+                saved = self.client.post(path + '/assess', data=answers)
+                self.assertEqual(saved.status_code, 302)
+                self.assertEqual(self.client.get(saved.headers['Location']).status_code, 200)
+                self.assertEqual(self.client.post(path + '/tasks', data=dict(
+                    csrf_token=self.token, title='Observe soil moisture')).status_code, 302)
+                tasks = self.client.get(path + '/tasks').get_data(as_text=True)
+                title = re.search(r'<title>(.*?)</title>', tasks, re.S).group(1)
+                self.assertNotIn('<script', title)
+                self.assertNotIn('</div>', title)
+                self.assertEqual(tasks.count('src="/static/checklist.js"'), 1)
+                task_id = re.search(r'id="task-(\d+)"', tasks).group(1)
+                self.assertEqual(self.client.post(path + '/tasks/' + task_id, data=dict(
+                    csrf_token=self.token, intent='complete')).status_code, 302)
+                observed = self.client.post(path + '/progress', data=dict(
+                    csrf_token=self.token, source_task_id=task_id, entry_date='2026-01-01',
+                    entry_type='observation', observation='Soil feels dry near the surface.',
+                    measurement='', metric='', unit='', period=''))
+                self.assertEqual(observed.status_code, 302)
+                page = self.client.get(path + '/progress').data
+                self.assertIn(b'Soil feels dry near the surface.', page)
+                self.assertEqual(b'/static/app.js' in page, mode == 'standard')
+                forecast.assert_not_called()

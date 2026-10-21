@@ -34,6 +34,17 @@ def verify():
             assert signed_in.headers['Location'] == destination
             assert client.get(destination,base_url='https://localhost').status_code == 200
         alice, bob = clients
+        preference = post(alice, '/accessibility', dict(
+            csrf_token=token(alice, '/accessibility'), data_mode='low'))
+        assert preference.status_code == 303
+        cookie = preference.headers['Set-Cookie']
+        assert all(flag in cookie for flag in ['Secure', 'HttpOnly', 'SameSite=Lax'])
+        low_home = alice.get('/', base_url='https://localhost')
+        assert b'/static/app.js' not in low_home.data
+        assert b'/static/landscape.svg' not in low_home.data
+        assert low_home.headers['Cache-Control'] == 'no-store'
+        assert b'/static/app.js' in bob.get('/', base_url='https://localhost').data
+        # Exercise the following authenticated journey in low-data mode.
         csrf = token(alice, '/drafts/new')
         data = dict(csrf_token=csrf, title='Temporary verification draft',
             country='Test country', problem='Test water problem', approach='Measure use',
@@ -261,6 +272,11 @@ def verify():
         csrf = token(alice, '/drafts')
         assert post(alice, '/logout', dict(csrf_token=csrf)).status_code == 302
         assert alice.get('/drafts', base_url='https://localhost').status_code == 302
+        assert b'/static/app.js' not in alice.get('/', base_url='https://localhost').data
+        assert post(alice, '/accessibility', dict(
+            csrf_token=token(alice, '/accessibility'), data_mode='standard')).status_code == 303
+        assert b'/static/app.js' in alice.get('/', base_url='https://localhost').data
+        print('AdaptTrail hosted stage 5 verification passed: secure preferences, low-data authenticated workflows, logout persistence and standard-mode restoration.', flush=True)
     finally:
         connection = database()
         try:
@@ -270,3 +286,4 @@ def verify():
                     connection.execute('DELETE FROM users WHERE username = ?', (name,))
         finally:
             connection.close()
+
