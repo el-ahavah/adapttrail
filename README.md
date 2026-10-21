@@ -6,9 +6,9 @@
 
 ## Project status
 
-AdaptTrail is a deployed Flask application with accounts, private projects, preliminary assessments, optional weather snapshots, assessment-linked checklists, task-linked observations, measurement comparisons, adaptation history, and explicit community publication. It uses SQLite locally and PostgreSQL for hosted storage. Discover includes six sourced external examples and three labelled fictional demonstrations. No partnerships, UN affiliation, verified impact, or worldwide originality are claimed.
+AdaptTrail is a deployed Flask application with accounts, private projects, preliminary assessments, optional weather snapshots, on-demand weather notices, low-data display preferences, assessment-linked checklists, task-linked observations, measurement comparisons, adaptation history, and explicit community publication. It uses SQLite locally and PostgreSQL for hosted storage. Discover includes six sourced external examples and three labelled fictional demonstrations. No partnerships, UN affiliation, verified impact, or worldwide originality are claimed.
 
-See the [stage 1 review](docs/PLATFORM_REVIEW.md) for the verified feature inventory, limitations, test results, and proposed next stage.
+**Stage 5 is implemented and deployed; full sign-off is pending.** Automated and limited desktop checks passed on 21 October 2026. Mobile, screen-reader, slow-connection and print checks remain open. Stage 6's farmer pilot has not started. See the [stage 5 verification record](docs/STAGE_5.md). The [stage 1 review](docs/PLATFORM_REVIEW.md) is a historical baseline.
 
 ## The idea
 
@@ -249,7 +249,7 @@ Use this only for drafts you own. It leaves already assigned drafts unchanged. B
 
 ## Hosted deployment preparation
 
-`render.yaml` defines a Free Render web service and an external PostgreSQL database connection. There is no Render database trial in this configuration. Hosted deployment and database workflows were verified in the previous release. The stage 1 review reruns local automated checks; it does not constitute a new live deployment verification.
+`render.yaml` defines a Free Render web service and an external PostgreSQL database connection. There is no Render database trial in this configuration. Hosted database workflows were verified during the stage 5 release on 21 October 2026. See [the verification record](docs/STAGE_5.md) for the tested release and remaining checks.
 
 1. Create a dedicated Supabase Free project for AdaptTrail.
 2. Apply `sql/hosted-schema.sql` to that project's SQL editor. Tables are stored in `adapttrail_private`, outside the exposed Data API. Do not expose this schema. The backend uses the dedicated application role; Flask enforces draft ownership. Follow the subsequent role, RLS, and feature migrations in `sql/` as well; this initial schema alone does not install every current feature. These accounts use Flask authentication, not Supabase Auth.
@@ -275,9 +275,9 @@ Local SQLite upgrades automatically. Hosted PostgreSQL requires applying `sql/pr
 
 Choose **Assess this approach** on a Discover story, or **Assess an approach** on your private project. Sign-in is required to save answers. Assessment history is private to its owner and stores the input context, result, timestamp, and rule version. Assessments linked to a project are removed when that project is deleted.
 
-This first engine provides explained planning checks for soil cover, rainwater collection, and water monitoring. It flags unknown information and reported constraints; it does not calculate validated suitability scores. General references are linked in results. Rules are provisional and have not received independent practitioner review. Location, crop, and resources are recorded as context rather than used for unsupported local predictions. No weather API or AI is integrated. The feature remains optional.
+This first engine provides explained planning checks for soil cover, rainwater collection, and water monitoring. It flags unknown information and reported constraints; it does not calculate validated suitability scores. General references are linked in results. Rules are provisional and have not received independent practitioner review. Soil-cover assessments use limited maize growth-stage prompts alongside relevant conditions. Other crop names and free-text resources remain context. Optional Open-Meteo weather snapshots and on-demand project weather notices are integrated. AI is not integrated. The feature remains optional.
 
-Hosted installation requires `sql/suitability-assessments.sql`. Local SQLite adds the table automatically. Public sharing, translations, specialist review, and automatic weather context remain future work.
+Hosted installation requires `sql/suitability-assessments.sql`. Local SQLite adds the table automatically. Assessment snapshots remain private. Community story publication is available separately. Translations, specialist review and background weather monitoring remain future work.
 
 
 ## Community publication (implemented)
