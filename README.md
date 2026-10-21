@@ -66,7 +66,7 @@ The project aims to stay within free service allowances without paid AI dependen
 
 ## Running the project
 
-Requires Python 3.10 or newer. From the repository directory:
+Requires Python 3.10 or newer. Node.js is also needed for the JavaScript test command below. From the repository directory:
 
 ```bash
 python -m venv .venv
@@ -80,25 +80,36 @@ flask --app app run --debug
 
 Open http://127.0.0.1:5000 in your browser. The development server is for local use only.
 
-### Current files
+### Project files
 
-- `app.py`: Python routes and three fictional demonstration records.
-- `templates/`: HTML pages rendered by Flask.
-- `static/style.css`: responsive styling.
-- `requirements.txt`: pinned direct application dependency.
+| Path | Purpose |
+| --- | --- |
+| `app.py` | Routes, accounts, ownership checks and form handling. |
+| `storage.py` | SQLite/PostgreSQL connections and local schema setup. |
+| `assessment.py`, `guidance.py` | Preliminary assessment rules and explained planning prompts. |
+| `weather.py`, `weather_notices.py` | Optional weather retrieval, saved context and on-demand notices. |
+| `documented_projects.py` | Attributed external starter summaries. |
+| `templates/`, `static/` | Server-rendered pages, styles and optional JavaScript. |
+| `tests/`, `scripts/` | Automated checks and optional browser verification. |
+| `sql/` | Hosted schema and feature migrations. |
+| `hosted_verify.py`, `gunicorn.conf.py` | Hosted workflow verification and startup readiness checks. |
+| `render.yaml`, `requirements.txt` | Deployment definition and pinned Python dependencies. |
+| `docs/` | Feature notes, verification records and pilot preparation. |
 
-The demonstration collection remains separate from user drafts. Create a draft through **My drafts → Create a draft**. Drafts are stored in `instance/drafts.sqlite3` and persist after restarting. They can optionally reference a fictional demo as inspiration. Open a saved draft and choose **Edit draft** to update it, or **Delete draft** to review a confirmation page. Deletion requires an explicit confirmation and cannot be undone. Progress observations and explicit publication are implemented; private notes are not automatically published.
+The demonstration collection remains separate from user drafts. Create a draft through **My dashboard → Create a draft**. Drafts are stored in `instance/drafts.sqlite3` and persist after restarting. They can optionally reference a fictional demo as inspiration. Open a saved draft and choose **Edit draft** to update it, or **Delete draft** to review a confirmation page. Deletion requires an explicit confirmation and cannot be undone. Progress observations and explicit publication are implemented; private notes are not automatically published.
 
 For local development, create an account with a username and a password of 8–128 characters, then sign in. Each account can access only its own drafts. Passwords are hashed and state-changing forms require CSRF tokens. Use the loopback development server locally. Production configuration enables secure cookies and basic authentication rate limiting and requires production secrets and a PostgreSQL connection. Password recovery is not implemented. Weather is optional; core recordkeeping works without a weather request.
 
 The `instance/` directory and its session key are excluded from Git. To back up local drafts, stop the app and copy `instance/drafts.sqlite3` to a safe private location.
 
-Run the persistence and form checks:
+Run the Python workflow checks and JavaScript comparison tests:
 
 ```bash
 python -m unittest discover -s tests -v
 node --test tests/test_progress_comparison.cjs
 ```
+
+Optional browser checks require Playwright, an installed Chromium browser and a running local app. See [stage 5 testing instructions](docs/STAGE_5.md) before running them. A browser test file being present does not mean its checks have passed.
 
 ## Licence
 
